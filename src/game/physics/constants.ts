@@ -43,8 +43,8 @@ export const STAT_PHYSICS = {
   spinImpulse: (spinStat: number, lockedPower: number) => {
     return (0.02 + (spinStat / 10) * 0.18) * (lockedPower / 100)
   },
-  // Aim angle range: ±60 degrees
-  aimRangeRad: Math.PI / 3,
+  // Aim angle range: ±69 degrees (increased 15% from ±60)
+  aimRangeRad: (Math.PI / 3) * 1.15,
   // Power meter oscillation speed: high-control = slow oscillation.
   // Returns radians per second (the meter is a sine wave).
   powerMeterSpeed: (controlStat: number) => {

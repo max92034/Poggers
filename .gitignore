@@ -38,3 +38,13 @@ lerna-debug.log*
 # Cache
 .cache
 .parcel-cache
+
+# TypeScript build info
+*.tsbuildinfo
+
+# QA / test artifacts
+qa_test.py
+qa-*.png
+
+# IDE / tool-specific
+.trae/
