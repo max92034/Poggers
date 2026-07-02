@@ -1,36 +1,106 @@
-.popup-layer {
+/* The stage is a transparent overlay that contains all currently-visible popups.
+   Each popup positions itself within the stage based on its action type
+   (critical = top, defeat = bottom, taunt = center). */
+.popup-stage {
   position: absolute;
   inset: 0;
+  z-index: 50;
+  pointer-events: none; /* children opt-in */
+}
+
+.popup-layer {
+  position: absolute;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 50;
   cursor: pointer;
+  pointer-events: auto;
   animation: popup-fade-in 0.18s ease-out;
 }
 
-.popup-backdrop {
+/* Subtle dim behind the popup (covers the whole screen) */
+.popup-layer::before {
+  content: '';
   position: absolute;
   inset: 0;
-  background: rgba(8, 10, 16, 0.55);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: rgba(8, 10, 16, 0.45);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  z-index: -1;
 }
+
+/* ---- Position variants ---- */
+
+/* Center (used for taunt) — fills the screen */
+.popup-pos-center {
+  inset: 0;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Top (used for critical — attacker's slam) */
+.popup-pos-top {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50vh;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 24px;
+}
+
+/* Bottom (used for defeat — defender who got slammed) */
+.popup-pos-bottom {
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 50vh;
+  flex-direction: column-reverse;
+  gap: 8px;
+  padding-bottom: 24px;
+}
+
+/* ---- Art wrapper ---- */
 
 .popup-art-wrap {
   position: relative;
-  width: min(80vw, 900px);
-  aspect-ratio: 16 / 9;
-  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 80vw;
+  max-height: 100%;
+  /* Default 4:3 landscape aspect ratio — updated on image load to the
+     image's natural ratio so portrait images display fully without cropping. */
+  aspect-ratio: 4 / 3;
+  border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 16px 60px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
   animation: popup-pop 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* Size the wrapper based on the popup's position so critical + defeat can sit
+   on opposite halves of the screen without overlapping. */
+.popup-pos-center .popup-art-wrap {
+  width: min(70vw, 720px);
+  max-height: 70vh;
+}
+.popup-pos-top .popup-art-wrap {
+  width: min(50vw, 520px);
+  max-height: calc(50vh - 80px);
+}
+.popup-pos-bottom .popup-art-wrap {
+  width: min(50vw, 520px);
+  max-height: calc(50vh - 80px);
 }
 
 .popup-art {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  /* contain = show full image, no cropping */
+  object-fit: contain;
   display: block;
   animation: popup-zoom 2.4s ease-out forwards;
 }
@@ -60,11 +130,10 @@
   opacity: 0.7;
 }
 
+/* ---- Caption ---- */
+
 .popup-caption {
-  position: absolute;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -86,33 +155,66 @@
   opacity: 0.9;
 }
 
-/* Action-specific accents (kept subtle — let art do the work) */
-.popup-action-critical .popup-action { color: #fbbf24; }
-.popup-action-defeat .popup-action { color: #f87171; }
-.popup-action-taunt .popup-action { color: var(--accent); }
+/* Action-specific accent colors */
+.popup-action-critical .popup-action {
+  color: #fbbf24;
+}
+.popup-action-defeat .popup-action {
+  color: #f87171;
+}
+.popup-action-taunt .popup-action {
+  color: var(--accent);
+}
+
+/* ---- Animations ---- */
 
 @keyframes popup-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
-
 @keyframes popup-pop {
-  0% { transform: scale(0.92); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
+  0% {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes popup-zoom {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1.06);
+  }
 }
 
-@keyframes popup-zoom {
-  0% { transform: scale(1.0); }
-  100% { transform: scale(1.08); }
-}
+/* ---- Mobile ---- */
 
 @media (max-width: 600px) {
-  .popup-art-wrap {
-    width: 92vw;
-    border-radius: 12px;
+  .popup-pos-top .popup-art-wrap,
+  .popup-pos-bottom .popup-art-wrap {
+    width: min(70vw, 360px);
   }
-  .popup-fallback-name { font-size: 26px; }
-  .popup-fallback-arch { font-size: 13px; }
-  .popup-name { font-size: 18px; }
-  .popup-action { font-size: 12px; }
+  .popup-pos-center .popup-art-wrap {
+    width: min(90vw, 480px);
+  }
+  .popup-fallback-name {
+    font-size: 26px;
+  }
+  .popup-fallback-arch {
+    font-size: 13px;
+  }
+  .popup-name {
+    font-size: 18px;
+  }
+  .popup-action {
+    font-size: 12px;
+  }
 }

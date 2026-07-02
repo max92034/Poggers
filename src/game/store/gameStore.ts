@@ -160,49 +160,65 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   finishResolving: () => {
     const s = get()
-    // Main pog flipped → defeat
+    // Build per-shot popups first.
+    // - Critical: shown for the attacker when they slammed >= threshold pogs.
+    // - Defeat: shown for the defender when they got slammed >= threshold pogs.
+    // Both can fire on the same shot and appear simultaneously (top + bottom).
+    const perShotPopups: Popup[] = []
+    if (s.flipsThisShot >= MATCH.criticalThreshold) {
+      const attacker: Side = s.currentTurn
+      const defender: Side = attacker === 'player' ? 'ai' : 'player'
+      perShotPopups.push({
+        id: popupIdCounter++,
+        charId: attacker === 'player' ? s.playerCharId : s.aiCharId,
+        action: 'critical',
+        side: attacker,
+      })
+      perShotPopups.push({
+        id: popupIdCounter++,
+        charId: defender === 'player' ? s.playerCharId : s.aiCharId,
+        action: 'defeat',
+        side: defender,
+      })
+    }
+
+    // Main pog flipped → match ends.
     if (s.mainPogFlipped) {
       const loser = s.mainPogFlipped
       const winner: Side = loser === 'player' ? 'ai' : 'player'
-      const defeatPopup: Popup = {
-        id: popupIdCounter++,
-        charId: loser === 'player' ? s.playerCharId : s.aiCharId,
-        action: 'defeat',
-        side: loser,
-      }
-      // Critical popup if 4+ flips in the killing shot
-      const extra: Popup[] = []
-      if (s.flipsThisShot >= MATCH.criticalThreshold) {
-        extra.push({
-          id: popupIdCounter++,
-          charId: s.currentTurn === 'player' ? s.playerCharId : s.aiCharId,
-          action: 'critical',
-          side: s.currentTurn,
-        })
-      }
+      // If the killing shot didn't already produce a per-shot defeat popup
+      // for the loser, queue one so the loser is still acknowledged.
+      const hasDefeat = perShotPopups.some(
+        (p) => p.action === 'defeat' && p.side === loser
+      )
+      const closingPopups = hasDefeat
+        ? perShotPopups
+        : [
+            ...perShotPopups,
+            {
+              id: popupIdCounter++,
+              charId: loser === 'player' ? s.playerCharId : s.aiCharId,
+              action: 'defeat' as PopupAction,
+              side: loser,
+            },
+          ]
       set({
         phase: 'defeat',
         winner,
-        popups: [...s.popups, ...extra, defeatPopup],
+        popups: [...s.popups, ...closingPopups],
       })
       return
     }
 
-    // Critical popup (non-defeat)
-    if (s.flipsThisShot >= MATCH.criticalThreshold) {
-      const critPopup: Popup = {
-        id: popupIdCounter++,
-        charId: s.currentTurn === 'player' ? s.playerCharId : s.aiCharId,
-        action: 'critical',
-        side: s.currentTurn,
-      }
-      set({ popups: [...s.popups, critPopup] })
-    }
-
     // Round limit reached?
     if (s.round >= MATCH.maxRounds) {
-      const winner: Side = s.playerScore > s.aiScore ? 'player' : s.aiScore > s.playerScore ? 'ai' : 'player'
-      set({ phase: 'defeat', winner })
+      const winner: Side =
+        s.playerScore > s.aiScore
+          ? 'player'
+          : s.aiScore > s.playerScore
+          ? 'ai'
+          : 'player'
+      set({ phase: 'defeat', winner, popups: [...s.popups, ...perShotPopups] })
       return
     }
 
@@ -215,6 +231,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       phase: nextTurn === 'player' ? 'player_aim' : 'ai_thinking',
       aimAngle: 0,
       lockedPower: 50,
+      popups: [...s.popups, ...perShotPopups],
     })
     // Push taunt popup for the new attacker
     if (nextTurn === 'player') {

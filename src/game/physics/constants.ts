@@ -66,5 +66,6 @@ export const RESOLUTION = {
 export const MATCH = {
   maxRounds: 5,
   // Number of pogs that must flip in a single shot to trigger the "critical" popup
-  criticalThreshold: 4,
+  // (and the corresponding "defeat" popup for the defender).
+  criticalThreshold: 2,
 } as const
