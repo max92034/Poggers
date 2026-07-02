@@ -3,7 +3,8 @@
 
 import type { PopupAction } from './prompts/popups'
 
-const ART_BASE = '/art'
+// Use Vite's BASE_URL which automatically handles local dev vs GitHub Pages
+const ART_BASE = `${import.meta.env.BASE_URL}art`
 
 export function pogTextureUrl(charId: string): string {
   return `${ART_BASE}/${charId}-pog.png`
