@@ -1,0 +1,115 @@
+.main-menu {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 20% 30%, rgba(110, 168, 255, 0.18) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 70%, rgba(255, 143, 177, 0.15) 0%, transparent 50%),
+    var(--bg);
+}
+
+.menu-bg-glow {
+  position: absolute;
+  width: 60vmin;
+  height: 60vmin;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(110, 168, 255, 0.15) 0%, transparent 60%);
+  filter: blur(40px);
+  animation: glow-drift 12s ease-in-out infinite alternate;
+}
+
+.menu-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  padding: 24px;
+}
+
+.menu-title {
+  font-size: clamp(56px, 12vw, 120px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+  background: linear-gradient(135deg, #6ea8ff 0%, #ff8fb1 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 60px rgba(110, 168, 255, 0.3);
+}
+
+.menu-subtitle {
+  font-size: clamp(14px, 2vw, 18px);
+  color: var(--text-dim);
+  margin: 0 0 24px;
+}
+
+.menu-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(280px, 80vw);
+}
+
+.menu-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 24px;
+  font-size: 16px;
+}
+
+.menu-play {
+  background: linear-gradient(135deg, #6ea8ff 0%, #82b4ff 100%);
+}
+.menu-play:hover { background: linear-gradient(135deg, #82b4ff 0%, #9cc1ff 100%); }
+
+@keyframes glow-drift {
+  0% { transform: translate(-10%, -10%) scale(1); }
+  100% { transform: translate(10%, 10%) scale(1.2); }
+}
+
+/* How-to modal */
+.howto-modal {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+.howto-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px;
+  max-width: 520px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.howto-card h2 {
+  margin: 0 0 16px;
+  font-size: 22px;
+  color: var(--text);
+}
+.howto-card ol {
+  margin: 0 0 20px 20px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  font-size: 14px;
+}
+.howto-card ol li { margin-bottom: 8px; }
+.howto-card strong { color: var(--text); }
+.howto-card em { color: var(--accent); font-style: normal; font-weight: 600; }

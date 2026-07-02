@@ -1,0 +1,139 @@
+.aim-power {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  width: min(680px, calc(100vw - 32px));
+  background: rgba(22, 25, 34, 0.92);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 20px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  z-index: 10;
+  user-select: none;
+}
+
+.aim-row,
+.power-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+}
+
+.aim-label,
+.power-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 64px;
+}
+
+.aim-title {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.aim-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Aim slider — clean, minimal */
+.aim-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  background: linear-gradient(to right,
+    rgba(110, 168, 255, 0.2) 0%,
+    var(--border) 50%,
+    rgba(110, 168, 255, 0.2) 100%);
+  border-radius: 3px;
+  outline: none;
+}
+
+.aim-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 3px solid #0b0d12;
+  cursor: grab;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.aim-slider::-webkit-slider-thumb:active { cursor: grabbing; }
+
+.aim-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 3px solid #0b0d12;
+  cursor: grab;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Power bar */
+.power-bar {
+  position: relative;
+  width: 100%;
+  height: 28px;
+  background: var(--panel-2);
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.power-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #4ade80 0%, #fbbf24 60%, #f87171 100%);
+  transition: none;
+}
+
+.power-sweet-spot {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.18);
+  border-left: 2px dashed rgba(255, 255, 255, 0.5);
+  border-right: 2px dashed rgba(255, 255, 255, 0.5);
+  pointer-events: none;
+}
+
+/* Mobile: shrink padding, make slider thumb bigger for touch */
+@media (max-width: 600px) {
+  .aim-power {
+    bottom: 16px;
+    padding: 12px 14px;
+    width: calc(100vw - 24px);
+  }
+  .aim-row,
+  .power-row {
+    gap: 10px;
+  }
+  .aim-label,
+  .power-label {
+    min-width: 52px;
+  }
+  .aim-value {
+    font-size: 16px;
+  }
+  .aim-slider::-webkit-slider-thumb {
+    width: 28px;
+    height: 28px;
+  }
+}

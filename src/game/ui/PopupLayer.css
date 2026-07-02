@@ -1,0 +1,118 @@
+.popup-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  cursor: pointer;
+  animation: popup-fade-in 0.18s ease-out;
+}
+
+.popup-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 10, 16, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.popup-art-wrap {
+  position: relative;
+  width: min(80vw, 900px);
+  aspect-ratio: 16 / 9;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  animation: popup-pop 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+.popup-art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  animation: popup-zoom 2.4s ease-out forwards;
+}
+
+.popup-art-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.popup-art-fallback-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  padding: 24px;
+}
+.popup-fallback-name {
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.popup-fallback-arch {
+  font-size: 16px;
+  opacity: 0.7;
+}
+
+.popup-caption {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+}
+.popup-name {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.popup-action {
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #f5f7fa;
+  opacity: 0.9;
+}
+
+/* Action-specific accents (kept subtle — let art do the work) */
+.popup-action-critical .popup-action { color: #fbbf24; }
+.popup-action-defeat .popup-action { color: #f87171; }
+.popup-action-taunt .popup-action { color: var(--accent); }
+
+@keyframes popup-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes popup-pop {
+  0% { transform: scale(0.92); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes popup-zoom {
+  0% { transform: scale(1.0); }
+  100% { transform: scale(1.08); }
+}
+
+@media (max-width: 600px) {
+  .popup-art-wrap {
+    width: 92vw;
+    border-radius: 12px;
+  }
+  .popup-fallback-name { font-size: 26px; }
+  .popup-fallback-arch { font-size: 13px; }
+  .popup-name { font-size: 18px; }
+  .popup-action { font-size: 12px; }
+}
