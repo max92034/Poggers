@@ -21,7 +21,9 @@ function GameScreen() {
       <Scoreboard />
       <AimPower />
       <PopupLayer />
-      <DevMenu />
+      <div className="dev-menu-wrapper">
+        <DevMenu />
+      </div>
     </div>
   )
 }

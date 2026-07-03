@@ -43,6 +43,17 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   overflow: hidden;
 }
 
+.dev-menu-wrapper {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 9999;
+  pointer-events: none;
+}
+.dev-menu-wrapper > * {
+  pointer-events: auto;
+}
+
 /* ---- shared button styles ---- */
 .btn {
   padding: 12px 24px;
