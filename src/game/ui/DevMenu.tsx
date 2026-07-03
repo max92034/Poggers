@@ -16,7 +16,8 @@ export function DevMenu() {
   return (
     <>
       <button className="dev-menu-btn" onClick={() => setOpen((v) => !v)} title="Dev Menu">
-        <Wrench size={18} />
+        <Wrench size={20} />
+        <span className="dev-menu-badge">DEV</span>
       </button>
 
       {open && (
