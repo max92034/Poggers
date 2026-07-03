@@ -229,8 +229,8 @@ export function Slammer({
 
   // --- U/banana shape: a cylinder bent into a banana arc ---
   // Build the bent cylinder geometry by curving a standard cylinder along X.
-  const uBendRadius = 0.35 // how tight the bend is
-  const uBendAngle = Math.PI * 0.35 // ~63° of arc — clearly banana-shaped
+  const uBendRadius = 0.7 // how tight the bend is
+  const uBendAngle = Math.PI * 0.18 // ~32° of arc — subtle banana curve
   const uBentGeom = useMemo(() => {
     const cyl = new THREE.CylinderGeometry(radius, radius, height, 24, 16, false)
     const pos = cyl.attributes.position as THREE.BufferAttribute
