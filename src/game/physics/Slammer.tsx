@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import {
   RigidBody,
@@ -227,19 +227,46 @@ export function Slammer({
     }
   })
 
-  // --- U/banana shape geometry (lies flat in XZ plane, opens toward -Z) ---
-  const uTubeRadius = 0.06
-  const uPath = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.22, 0, 0.08),
-    new THREE.Vector3(-0.24, 0, 0),
-    new THREE.Vector3(-0.18, 0, -0.12),
-    new THREE.Vector3(0, 0, -0.2),
-    new THREE.Vector3(0.18, 0, -0.12),
-    new THREE.Vector3(0.24, 0, 0),
-    new THREE.Vector3(0.22, 0, 0.08),
-  ])
-  // Points for ball colliders
-  const uColliderPts = uPath.getPoints(6)
+  // --- U/banana shape: a cylinder bent into a banana arc ---
+  // Build the bent cylinder geometry by curving a standard cylinder along X.
+  const uBendRadius = 0.35 // how tight the bend is
+  const uBendAngle = Math.PI * 0.35 // ~63° of arc — clearly banana-shaped
+  const uBentGeom = useMemo(() => {
+    const cyl = new THREE.CylinderGeometry(radius, radius, height, 24, 16, false)
+    const pos = cyl.attributes.position as THREE.BufferAttribute
+    const arr = pos.array as Float32Array
+    for (let i = 0; i < pos.count; i++) {
+      const ix = i * 3
+      const x = arr[ix]
+      const y = arr[ix + 1]
+      const z = arr[ix + 2]
+      // Map x in [-h/2, h/2] to an angle in [-uBendAngle/2, uBendAngle/2]
+      const t = (x + height / 2) / height // 0..1 along length
+      const angle = (t - 0.5) * uBendAngle
+      // New position: bent around Z axis
+      const rx = Math.sin(angle) * uBendRadius
+      const rz = (Math.cos(angle) - 1) * uBendRadius
+      arr[ix] = rx
+      arr[ix + 1] = y
+      arr[ix + 2] = z + rz
+    }
+    cyl.computeVertexNormals()
+    return cyl
+  }, [radius, height])
+
+  // Ball colliders along the curved centerline for accurate physics
+  const uColliderPts = useMemo(() => {
+    const pts: Array<[number, number, number]> = []
+    const n = 6
+    for (let i = 0; i <= n; i++) {
+      const t = i / n
+      const angle = (t - 0.5) * uBendAngle
+      const rx = Math.sin(angle) * uBendRadius
+      const rz = (Math.cos(angle) - 1) * uBendRadius
+      pts.push([rx, 0, rz])
+    }
+    return pts
+  }, [])
 
   return (
     <RigidBody
@@ -257,12 +284,12 @@ export function Slammer({
     >
       {hasUShape ? (
         <>
-          {/* U-shape colliders: spheres along the tube path */}
+          {/* U-shape colliders: spheres along the bent centerline */}
           {uColliderPts.map((pt, i) => (
             <BallCollider
               key={i}
-              args={[uTubeRadius]}
-              position={[pt.x, pt.y, pt.z]}
+              args={[radius * 0.85]}
+              position={[pt[0], pt[1], pt[2]]}
               density={mass / 7}
             />
           ))}
@@ -278,9 +305,8 @@ export function Slammer({
       {/* --- Visual meshes --- */}
 
       {hasUShape ? (
-        /* U/banana shape: curved tube lying flat in XZ plane, opens toward -Z */
-        <mesh castShadow visible={isActive}>
-          <primitive object={new THREE.TubeGeometry(uPath, 32, uTubeRadius, 12, false)} attach="geometry" />
+        /* U/banana shape: bent cylinder (concave-up banana) */
+        <mesh castShadow visible={isActive} geometry={uBentGeom}>
           <meshStandardMaterial
             color={attackerChar.palette.accent}
             metalness={0.6}
