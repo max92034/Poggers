@@ -227,12 +227,19 @@ export function Slammer({
     }
   })
 
-  // --- Geometry helpers ---
-
-  // U/banana shape: partial torus arc (180°) oriented to open upward
-  const uShapeArc = Math.PI // 180° half-circle
-  const uShapeTubeRadius = radius * 0.3
-  const uShapeMajorRadius = radius * 0.9
+  // --- U/banana shape geometry (lies flat in XZ plane, opens toward -Z) ---
+  const uTubeRadius = 0.06
+  const uPath = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-0.22, 0, 0.08),
+    new THREE.Vector3(-0.24, 0, 0),
+    new THREE.Vector3(-0.18, 0, -0.12),
+    new THREE.Vector3(0, 0, -0.2),
+    new THREE.Vector3(0.18, 0, -0.12),
+    new THREE.Vector3(0.24, 0, 0),
+    new THREE.Vector3(0.22, 0, 0.08),
+  ])
+  // Points for ball colliders
+  const uColliderPts = uPath.getPoints(6)
 
   return (
     <RigidBody
@@ -250,20 +257,15 @@ export function Slammer({
     >
       {hasUShape ? (
         <>
-          {/* U-shape colliders: series of small spheres along the torus arc */}
-          {Array.from({ length: 7 }).map((_, i) => {
-            const t = (i / 6) * uShapeArc
-            const cx = Math.cos(t) * uShapeMajorRadius
-            const cy = Math.sin(t) * uShapeMajorRadius - uShapeMajorRadius
-            return (
-              <BallCollider
-                key={i}
-                args={[uShapeTubeRadius]}
-                position={[cx, cy, 0]}
-                density={mass / 7}
-              />
-            )
-          })}
+          {/* U-shape colliders: spheres along the tube path */}
+          {uColliderPts.map((pt, i) => (
+            <BallCollider
+              key={i}
+              args={[uTubeRadius]}
+              position={[pt.x, pt.y, pt.z]}
+              density={mass / 7}
+            />
+          ))}
         </>
       ) : (
         /* Default: single cylinder collider */
@@ -276,9 +278,9 @@ export function Slammer({
       {/* --- Visual meshes --- */}
 
       {hasUShape ? (
-        /* U/banana shape: partial torus rotated so it opens upward */
-        <mesh castShadow visible={isActive} rotation={[0, 0, 0]}>
-          <torusGeometry args={[uShapeMajorRadius, uShapeTubeRadius, 16, 32, uShapeArc]} />
+        /* U/banana shape: curved tube lying flat in XZ plane, opens toward -Z */
+        <mesh castShadow visible={isActive}>
+          <primitive object={new THREE.TubeGeometry(uPath, 32, uTubeRadius, 12, false)} attach="geometry" />
           <meshStandardMaterial
             color={attackerChar.palette.accent}
             metalness={0.6}
