@@ -153,6 +153,8 @@ export function Slammer({
 
       const speed = STAT_PHYSICS.launchSpeed(attackerChar.stats.power, lockedPower)
 
+      // Impulse = mass * velocity_change. To achieve velocity = speed in the
+      // launch direction, impulse = dir * speed * mass.
       const impulse = {
         x: dir.x * speed * mass,
         y: dir.y * speed * mass,
@@ -231,6 +233,8 @@ export function Slammer({
   // Build the bent cylinder geometry by curving a standard cylinder along X.
   const uBendRadius = 0.7 // how tight the bend is
   const uBendAngle = Math.PI * 0.18 // ~32° of arc — subtle banana curve
+  const uTubeRadius = radius * 0.85 // collider radius for U-shape
+
   const uBentGeom = useMemo(() => {
     const cyl = new THREE.CylinderGeometry(radius, radius, height, 24, 16, false)
     const pos = cyl.attributes.position as THREE.BufferAttribute
@@ -254,7 +258,10 @@ export function Slammer({
     return cyl
   }, [radius, height])
 
-  // Ball colliders along the curved centerline for accurate physics
+  // Ball colliders along the curved centerline.
+  // IMPORTANT: density must yield the SAME total mass as the default cylinder,
+  // otherwise applyImpulse(impulse = mass * speed) will be applied against a
+  // body whose actual mass is very different, causing runaway velocity.
   const uColliderPts = useMemo(() => {
     const pts: Array<[number, number, number]> = []
     const n = 6
@@ -267,6 +274,14 @@ export function Slammer({
     }
     return pts
   }, [])
+
+  // Default cylinder collider mass (matches the non-U-shape mass)
+  const defaultCylinderVolume = Math.PI * radius * radius * height
+  // 7 ball colliders for U-shape: total volume = 7 * (4/3)π r³
+  const uBallTotalVolume = 7 * (4 / 3) * Math.PI * Math.pow(uTubeRadius, 3)
+  // density = mass / volume, so total collider mass = density * totalVolume = mass
+  const uColliderDensity = mass / uBallTotalVolume
+  const defaultCylinderDensity = mass / defaultCylinderVolume
 
   return (
     <RigidBody
@@ -288,9 +303,9 @@ export function Slammer({
           {uColliderPts.map((pt, i) => (
             <BallCollider
               key={i}
-              args={[radius * 0.85]}
+              args={[uTubeRadius]}
               position={[pt[0], pt[1], pt[2]]}
-              density={mass / 7}
+              density={uColliderDensity}
             />
           ))}
         </>
@@ -298,7 +313,7 @@ export function Slammer({
         /* Default: single cylinder collider */
         <CylinderCollider
           args={[height / 2, radius]}
-          density={mass / (Math.PI * radius * radius * height)}
+          density={defaultCylinderDensity}
         />
       )}
 
