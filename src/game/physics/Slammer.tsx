@@ -1,6 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { RigidBody, CylinderCollider, type RapierRigidBody } from '@react-three/rapier'
+import {
+  RigidBody,
+  CylinderCollider,
+  BallCollider,
+  type RapierRigidBody,
+  type CollisionEnterPayload,
+} from '@react-three/rapier'
 import * as THREE from 'three'
 import { ARENA, STAT_PHYSICS, RESOLUTION } from './constants'
 import { useGameStore } from '../store/gameStore'
@@ -34,18 +40,30 @@ const ZERO_VEL = { x: 0, y: 0, z: 0 }
  * transitioned to dynamic.
  *
  * Item effects:
- * - Pocket Lighter: U-shape visual, lighter mass, more spin, extra bounce.
+ * - Pocket Lighter: U/banana shape (partial torus), lighter mass, more spin, extra bounce.
  * - Chewing Gum: pink blob visual, heavier mass, more spin, higher friction.
+ *   Sticky: pogs that collide with the slammer get spring-attached, moving with it.
  * - Magnets: glow ring visual, dramatically increased spin.
  *   TODO: Implement metallic pog attraction in the elemental patch.
  */
-export function Slammer({ attackerChar, attackerSide, aimAngle, lockedPower, shotId, items, bodyRef: externalBodyRef }: SlammerProps) {
+export function Slammer({
+  attackerChar,
+  attackerSide,
+  aimAngle,
+  lockedPower,
+  shotId,
+  items,
+  bodyRef: externalBodyRef,
+}: SlammerProps) {
   const internalBodyRef = useRef<RapierRigidBody>(null)
   const bodyRef = externalBodyRef ?? internalBodyRef
   const settledTimerRef = useRef(0)
   const elapsedRef = useRef(0)
   const reportedRef = useRef(false)
   const firedShotIdRef = useRef<number>(-1)
+
+  // Sticky gum: track which pog bodies are stuck to this slammer
+  const stuckBodiesRef = useRef<RapierRigidBody[]>([])
 
   const phase = useGameStore((s) => s.phase)
   const enterResolving = useGameStore((s) => s.enterResolving)
@@ -74,6 +92,13 @@ export function Slammer({ attackerChar, attackerSide, aimAngle, lockedPower, sho
   const hasGumBlob = items.some((i) => i.visualType === 'gum-blob')
   const hasMagnetGlow = items.some((i) => i.visualType === 'magnetic-glow')
 
+  // Clear stuck bodies when a new shot starts
+  useEffect(() => {
+    if (phase === 'launching' && firedShotIdRef.current !== shotId) {
+      stuckBodiesRef.current = []
+    }
+  }, [phase, shotId])
+
   useEffect(() => {
     const body = bodyRef.current
     if (!body) return
@@ -92,8 +117,21 @@ export function Slammer({ attackerChar, attackerSide, aimAngle, lockedPower, sho
       body.setTranslation(PARK_POS, true)
       body.setLinvel(ZERO_VEL, true)
       body.setAngvel(ZERO_VEL, true)
+      stuckBodiesRef.current = []
     }
   }, [phase, shotId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Collision handler for gum stickiness
+  const handleCollisionEnter = (payload: CollisionEnterPayload) => {
+    if (!hasGumBlob) return
+    const otherBody = payload.other.rigidBody
+    if (!otherBody) return
+    // Only stick to dynamic bodies (pogs)
+    const currentStuck = stuckBodiesRef.current
+    if (currentStuck.includes(otherBody)) return
+    if (otherBody.bodyType() !== 1) return // 1 = dynamic
+    stuckBodiesRef.current = [...currentStuck, otherBody]
+  }
 
   useFrame((_, delta) => {
     if (phase !== 'launching') return
@@ -115,28 +153,61 @@ export function Slammer({ attackerChar, attackerSide, aimAngle, lockedPower, sho
 
       const speed = STAT_PHYSICS.launchSpeed(attackerChar.stats.power, lockedPower)
 
-      // Modified mass and spin from items
-      const impulse = { x: dir.x * speed * mass, y: dir.y * speed * mass, z: dir.z * speed * mass }
+      const impulse = {
+        x: dir.x * speed * mass,
+        y: dir.y * speed * mass,
+        z: dir.z * speed * mass,
+      }
       body.applyImpulse(impulse, true)
 
       const baseSpinMag = STAT_PHYSICS.spinImpulse(attackerChar.stats.spin, lockedPower)
       const spinMag = computeSlammerSpin(baseSpinMag, items)
       const horizDir = new THREE.Vector3(dir.x, 0, dir.z).normalize()
       const spinAxis = new THREE.Vector3(-horizDir.z, 0, horizDir.x)
-      body.applyTorqueImpulse({ x: spinAxis.x * spinMag, y: spinAxis.y * spinMag, z: spinAxis.z * spinMag }, true)
+      body.applyTorqueImpulse(
+        {
+          x: spinAxis.x * spinMag,
+          y: spinAxis.y * spinMag,
+          z: spinAxis.z * spinMag,
+        },
+        true,
+      )
+    }
+
+    // Gum stickiness: pull stuck pogs toward the slammer using velocity blending
+    if (hasGumBlob && stuckBodiesRef.current.length > 0) {
+      const slammerPos = body.translation()
+      const slammerVel = body.linvel()
+      const sPos = new THREE.Vector3(slammerPos.x, slammerPos.y, slammerPos.z)
+      const sVel = new THREE.Vector3(slammerVel.x, slammerVel.y, slammerVel.z)
+
+      for (const pogBody of stuckBodiesRef.current) {
+        // Skip if the body was removed or is no longer dynamic
+        if (!pogBody || pogBody.bodyType() !== 1) continue
+
+        const pogPos = pogBody.translation()
+        const pogVel = pogBody.linvel()
+        const pPos = new THREE.Vector3(pogPos.x, pogPos.y, pogPos.z)
+
+        // Target: slammer bottom (where the gum blob is)
+        const gumOffset = new THREE.Vector3(0, -height / 2 - radius * 0.25, 0)
+        const target = sPos.clone().add(gumOffset)
+        const diff = target.clone().sub(pPos)
+
+        // Spring: blend pog velocity toward slammer velocity + pull toward gum
+        const pullStrength = 8.0
+        const velBlend = 6.0
+        const newVel = {
+          x: pogVel.x + (sVel.x - pogVel.x) * velBlend * delta + diff.x * pullStrength * delta,
+          y: pogVel.y + (sVel.y - pogVel.y) * velBlend * delta + diff.y * pullStrength * delta,
+          z: pogVel.z + (sVel.z - pogVel.z) * velBlend * delta + diff.z * pullStrength * delta,
+        }
+        pogBody.setLinvel(newVel, true)
+      }
     }
 
     const vel = body.linvel()
     const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y + vel.z * vel.z)
-
-    const t = body.translation()
-    ;(window as any).__slammer = {
-      t: [t.x.toFixed(2), t.y.toFixed(2), t.z.toFixed(2)],
-      speed: speed.toFixed(2),
-      shotId,
-      elapsed: elapsedRef.current.toFixed(2),
-      bodyType: body.bodyType(),
-    }
 
     elapsedRef.current += delta
 
@@ -156,6 +227,13 @@ export function Slammer({ attackerChar, attackerSide, aimAngle, lockedPower, sho
     }
   })
 
+  // --- Geometry helpers ---
+
+  // U/banana shape: partial torus arc (180°) oriented to open upward
+  const uShapeArc = Math.PI // 180° half-circle
+  const uShapeTubeRadius = radius * 0.3
+  const uShapeMajorRadius = radius * 0.9
+
   return (
     <RigidBody
       ref={bodyRef}
@@ -168,70 +246,59 @@ export function Slammer({ attackerChar, attackerSide, aimAngle, lockedPower, sho
       linearDamping={0.15}
       angularDamping={0.2}
       ccd
+      onCollisionEnter={handleCollisionEnter}
     >
-      {/* Main collider — always present */}
-      <CylinderCollider args={[height / 2, radius]} density={mass / (Math.PI * radius * radius * height)} />
-
-      {/* U-shape: extra side colliders for the two arms */}
-      {hasUShape && (
+      {hasUShape ? (
         <>
-          <CylinderCollider
-            args={[height / 2, radius * 0.4]}
-            position={[-radius * 0.65, 0, 0]}
-            density={mass / (Math.PI * radius * radius * height)}
-          />
-          <CylinderCollider
-            args={[height / 2, radius * 0.4]}
-            position={[radius * 0.65, 0, 0]}
-            density={mass / (Math.PI * radius * radius * height)}
-          />
+          {/* U-shape colliders: series of small spheres along the torus arc */}
+          {Array.from({ length: 7 }).map((_, i) => {
+            const t = (i / 6) * uShapeArc
+            const cx = Math.cos(t) * uShapeMajorRadius
+            const cy = Math.sin(t) * uShapeMajorRadius - uShapeMajorRadius
+            return (
+              <BallCollider
+                key={i}
+                args={[uShapeTubeRadius]}
+                position={[cx, cy, 0]}
+                density={mass / 7}
+              />
+            )
+          })}
         </>
+      ) : (
+        /* Default: single cylinder collider */
+        <CylinderCollider
+          args={[height / 2, radius]}
+          density={mass / (Math.PI * radius * radius * height)}
+        />
       )}
 
-      {/* Base mesh (default cylinder) */}
-      <mesh castShadow visible={isActive}>
-        <cylinderGeometry args={[radius, radius, height, 32]} />
-        <meshStandardMaterial
-          color={attackerChar.palette.accent}
-          metalness={0.6}
-          roughness={0.25}
-          emissive={attackerChar.palette.primary}
-          emissiveIntensity={0.25}
-        />
-      </mesh>
+      {/* --- Visual meshes --- */}
 
-      {/* U-shape visual: two side cylinders + bottom connector */}
-      {hasUShape && isActive && (
-        <>
-          <mesh position={[-radius * 0.65, 0, 0]} castShadow>
-            <cylinderGeometry args={[radius * 0.4, radius * 0.4, height, 16]} />
-            <meshStandardMaterial
-              color={attackerChar.palette.accent}
-              metalness={0.5}
-              roughness={0.3}
-              emissive={attackerChar.palette.primary}
-              emissiveIntensity={0.2}
-            />
-          </mesh>
-          <mesh position={[radius * 0.65, 0, 0]} castShadow>
-            <cylinderGeometry args={[radius * 0.4, radius * 0.4, height, 16]} />
-            <meshStandardMaterial
-              color={attackerChar.palette.accent}
-              metalness={0.5}
-              roughness={0.3}
-              emissive={attackerChar.palette.primary}
-              emissiveIntensity={0.2}
-            />
-          </mesh>
-          <mesh position={[0, -height / 2 - radius * 0.15, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
-            <cylinderGeometry args={[radius * 0.25, radius * 0.25, radius * 1.4, 12]} />
-            <meshStandardMaterial
-              color={attackerChar.palette.accent}
-              metalness={0.5}
-              roughness={0.3}
-            />
-          </mesh>
-        </>
+      {hasUShape ? (
+        /* U/banana shape: partial torus rotated so it opens upward */
+        <mesh castShadow visible={isActive} rotation={[0, 0, 0]}>
+          <torusGeometry args={[uShapeMajorRadius, uShapeTubeRadius, 16, 32, uShapeArc]} />
+          <meshStandardMaterial
+            color={attackerChar.palette.accent}
+            metalness={0.6}
+            roughness={0.25}
+            emissive={attackerChar.palette.primary}
+            emissiveIntensity={0.25}
+          />
+        </mesh>
+      ) : (
+        /* Default cylinder */
+        <mesh castShadow visible={isActive}>
+          <cylinderGeometry args={[radius, radius, height, 32]} />
+          <meshStandardMaterial
+            color={attackerChar.palette.accent}
+            metalness={0.6}
+            roughness={0.25}
+            emissive={attackerChar.palette.primary}
+            emissiveIntensity={0.25}
+          />
+        </mesh>
       )}
 
       {/* Gum blob visual: pink sphere on the bottom face */}
