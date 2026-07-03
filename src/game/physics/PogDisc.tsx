@@ -15,13 +15,14 @@ interface PogDiscProps {
   isMain?: boolean
   mainSide?: 'player' | 'ai'
   shotId: number
+  slippery?: boolean
 }
 
 /**
  * A single pog disc. Tracks its own orientation each frame and fires onFlip
  * exactly once per shot when it transitions to face-down.
  */
-export function PogDisc({ position, rotation, charId, palette, isMain = false, mainSide, shotId }: PogDiscProps) {
+export function PogDisc({ position, rotation, charId, palette, isMain = false, mainSide, shotId, slippery = false }: PogDiscProps) {
   const bodyRef = useRef<RapierRigidBody>(null)
   const [texture, setTexture] = useState<THREE.Texture | null>(null)
 
@@ -85,6 +86,14 @@ export function PogDisc({ position, rotation, charId, palette, isMain = false, m
   const height = isMain ? ARENA.stackHeight * 1.4 : ARENA.stackHeight
   const mass = isMain ? STAT_PHYSICS.pogMass * 2.5 : STAT_PHYSICS.pogMass
 
+  // Slippery (Baby Oil) reduces friction and increases restitution
+  const pogRestitution = slippery
+    ? Math.min(0.95, STAT_PHYSICS.pogRestitution + 0.25)
+    : STAT_PHYSICS.pogRestitution
+  const pogFriction = slippery
+    ? Math.max(0.05, STAT_PHYSICS.pogFriction * 0.3)
+    : STAT_PHYSICS.pogFriction
+
   return (
     <RigidBody
       ref={bodyRef}
@@ -93,10 +102,10 @@ export function PogDisc({ position, rotation, charId, palette, isMain = false, m
       position={position}
       rotation={rotation}
       mass={mass}
-      restitution={STAT_PHYSICS.pogRestitution}
-      friction={STAT_PHYSICS.pogFriction}
-      linearDamping={0.4}
-      angularDamping={0.6}
+      restitution={pogRestitution}
+      friction={pogFriction}
+      linearDamping={slippery ? 0.15 : 0.4}
+      angularDamping={slippery ? 0.3 : 0.6}
       ccd
     >
       <CylinderCollider args={[height / 2, radius]} />

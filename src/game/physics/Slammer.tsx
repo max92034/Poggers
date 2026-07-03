@@ -5,6 +5,13 @@ import * as THREE from 'three'
 import { ARENA, STAT_PHYSICS, RESOLUTION } from './constants'
 import { useGameStore } from '../store/gameStore'
 import type { Character } from '../characters/types'
+import type { SlammerItem } from '../items/types'
+import {
+  computeSlammerMass,
+  computeSlammerSpin,
+  computeSlammerRestitution,
+  computeSlammerFriction,
+} from '../items/itemPhysics'
 
 interface SlammerProps {
   attackerChar: Character
@@ -12,6 +19,7 @@ interface SlammerProps {
   aimAngle: number
   lockedPower: number
   shotId: number
+  items: SlammerItem[]
   bodyRef?: React.MutableRefObject<RapierRigidBody | null>
 }
 
@@ -24,32 +32,48 @@ const ZERO_VEL = { x: 0, y: 0, z: 0 }
  * 'dynamic' (active) and 'fixed' (parked). Launch velocity is applied inside
  * useFrame on the first frame of each new shot, after the body type has fully
  * transitioned to dynamic.
+ *
+ * Item effects:
+ * - Pocket Lighter: U-shape visual, lighter mass, more spin, extra bounce.
+ * - Chewing Gum: pink blob visual, heavier mass, more spin, higher friction.
+ * - Magnets: glow ring visual, dramatically increased spin.
+ *   TODO: Implement metallic pog attraction in the elemental patch.
  */
-export function Slammer({ attackerChar, attackerSide, aimAngle, lockedPower, shotId, bodyRef: externalBodyRef }: SlammerProps) {
+export function Slammer({ attackerChar, attackerSide, aimAngle, lockedPower, shotId, items, bodyRef: externalBodyRef }: SlammerProps) {
   const internalBodyRef = useRef<RapierRigidBody>(null)
   const bodyRef = externalBodyRef ?? internalBodyRef
   const settledTimerRef = useRef(0)
   const elapsedRef = useRef(0)
   const reportedRef = useRef(false)
-  // ShotId for which launch velocity has been applied
   const firedShotIdRef = useRef<number>(-1)
 
   const phase = useGameStore((s) => s.phase)
   const enterResolving = useGameStore((s) => s.enterResolving)
 
   const zSign = attackerSide === 'player' ? 1 : -1
-  // Slammer spawns directly above the stack. Aim angle shifts the spawn
-  // horizontally left/right so it crashes down onto a specific spot on the stack.
   const spawn: [number, number, number] = [
     0,
     ARENA.slammerSpawnHeight,
-    zSign * 0.1, // tiny offset so it doesn't spawn exactly above center
+    zSign * 0.1,
   ]
 
   const isActive = phase === 'launching' || phase === 'resolving'
 
-  // Reset position + tracking refs when a new shot starts (position only,
-  // velocity is set in useFrame after the body type transitions to dynamic).
+  // Item-based physics values
+  const baseMass = STAT_PHYSICS.slammerMass(attackerChar.stats.weight)
+  const mass = computeSlammerMass(baseMass, items)
+  const baseRest = STAT_PHYSICS.slammerRestitution(attackerChar.stats.bounce)
+  const restitution = computeSlammerRestitution(baseRest, items)
+  const friction = computeSlammerFriction(0.4, items)
+
+  const radius = ARENA.slammerRadius
+  const height = ARENA.slammerHeight
+
+  // Visual flags
+  const hasUShape = items.some((i) => i.visualType === 'u-shape')
+  const hasGumBlob = items.some((i) => i.visualType === 'gum-blob')
+  const hasMagnetGlow = items.some((i) => i.visualType === 'magnetic-glow')
+
   useEffect(() => {
     const body = bodyRef.current
     if (!body) return
@@ -71,23 +95,15 @@ export function Slammer({ attackerChar, attackerSide, aimAngle, lockedPower, sho
     }
   }, [phase, shotId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Apply launch velocity in the first useFrame of a new shot.
-  // This guarantees the body type is already 'dynamic'.
   useFrame((_, delta) => {
     if (phase !== 'launching') return
     const body = bodyRef.current
     if (!body || reportedRef.current) return
 
-    // Apply launch impulse on the first frame of this shot.
-    // Done in useFrame (not useEffect) to guarantee the body is already 'dynamic'
-    // — avoids a timing issue with useEffect firing before the type prop change
-    // has been fully applied by @react-three/rapier.
     if (firedShotIdRef.current !== shotId) {
       firedShotIdRef.current = shotId
 
       const spawnVec = new THREE.Vector3(...spawn)
-      // Slammer crashes nearly straight down. Aim angle shifts the impact point
-      // horizontally on the stack top so you can target different areas.
       const aimOffsetX = Math.sin(aimAngle) * ARENA.slammerAimRadius
       const aimOffsetZ = Math.cos(aimAngle) * ARENA.slammerAimRadius * zSign
       const aimTarget = new THREE.Vector3(
@@ -98,14 +114,13 @@ export function Slammer({ attackerChar, attackerSide, aimAngle, lockedPower, sho
       const dir = aimTarget.clone().sub(spawnVec).normalize()
 
       const speed = STAT_PHYSICS.launchSpeed(attackerChar.stats.power, lockedPower)
-      const mass = STAT_PHYSICS.slammerMass(attackerChar.stats.weight)
 
-      // Impulse = mass * velocity_delta
+      // Modified mass and spin from items
       const impulse = { x: dir.x * speed * mass, y: dir.y * speed * mass, z: dir.z * speed * mass }
       body.applyImpulse(impulse, true)
 
-      // Torque impulse for spin
-      const spinMag = STAT_PHYSICS.spinImpulse(attackerChar.stats.spin, lockedPower)
+      const baseSpinMag = STAT_PHYSICS.spinImpulse(attackerChar.stats.spin, lockedPower)
+      const spinMag = computeSlammerSpin(baseSpinMag, items)
       const horizDir = new THREE.Vector3(dir.x, 0, dir.z).normalize()
       const spinAxis = new THREE.Vector3(-horizDir.z, 0, horizDir.x)
       body.applyTorqueImpulse({ x: spinAxis.x * spinMag, y: spinAxis.y * spinMag, z: spinAxis.z * spinMag }, true)
@@ -114,7 +129,6 @@ export function Slammer({ attackerChar, attackerSide, aimAngle, lockedPower, sho
     const vel = body.linvel()
     const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y + vel.z * vel.z)
 
-    // TEMP diagnostic
     const t = body.translation()
     ;(window as any).__slammer = {
       t: [t.x.toFixed(2), t.y.toFixed(2), t.z.toFixed(2)],
@@ -142,11 +156,6 @@ export function Slammer({ attackerChar, attackerSide, aimAngle, lockedPower, sho
     }
   })
 
-  const mass = STAT_PHYSICS.slammerMass(attackerChar.stats.weight)
-  const restitution = STAT_PHYSICS.slammerRestitution(attackerChar.stats.bounce)
-  const radius = ARENA.slammerRadius
-  const height = ARENA.slammerHeight
-
   return (
     <RigidBody
       ref={bodyRef}
@@ -155,12 +164,31 @@ export function Slammer({ attackerChar, attackerSide, aimAngle, lockedPower, sho
       position={spawn}
       mass={mass}
       restitution={restitution}
-      friction={0.4}
+      friction={friction}
       linearDamping={0.15}
       angularDamping={0.2}
       ccd
     >
+      {/* Main collider — always present */}
       <CylinderCollider args={[height / 2, radius]} density={mass / (Math.PI * radius * radius * height)} />
+
+      {/* U-shape: extra side colliders for the two arms */}
+      {hasUShape && (
+        <>
+          <CylinderCollider
+            args={[height / 2, radius * 0.4]}
+            position={[-radius * 0.65, 0, 0]}
+            density={mass / (Math.PI * radius * radius * height)}
+          />
+          <CylinderCollider
+            args={[height / 2, radius * 0.4]}
+            position={[radius * 0.65, 0, 0]}
+            density={mass / (Math.PI * radius * radius * height)}
+          />
+        </>
+      )}
+
+      {/* Base mesh (default cylinder) */}
       <mesh castShadow visible={isActive}>
         <cylinderGeometry args={[radius, radius, height, 32]} />
         <meshStandardMaterial
@@ -171,6 +199,68 @@ export function Slammer({ attackerChar, attackerSide, aimAngle, lockedPower, sho
           emissiveIntensity={0.25}
         />
       </mesh>
+
+      {/* U-shape visual: two side cylinders + bottom connector */}
+      {hasUShape && isActive && (
+        <>
+          <mesh position={[-radius * 0.65, 0, 0]} castShadow>
+            <cylinderGeometry args={[radius * 0.4, radius * 0.4, height, 16]} />
+            <meshStandardMaterial
+              color={attackerChar.palette.accent}
+              metalness={0.5}
+              roughness={0.3}
+              emissive={attackerChar.palette.primary}
+              emissiveIntensity={0.2}
+            />
+          </mesh>
+          <mesh position={[radius * 0.65, 0, 0]} castShadow>
+            <cylinderGeometry args={[radius * 0.4, radius * 0.4, height, 16]} />
+            <meshStandardMaterial
+              color={attackerChar.palette.accent}
+              metalness={0.5}
+              roughness={0.3}
+              emissive={attackerChar.palette.primary}
+              emissiveIntensity={0.2}
+            />
+          </mesh>
+          <mesh position={[0, -height / 2 - radius * 0.15, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+            <cylinderGeometry args={[radius * 0.25, radius * 0.25, radius * 1.4, 12]} />
+            <meshStandardMaterial
+              color={attackerChar.palette.accent}
+              metalness={0.5}
+              roughness={0.3}
+            />
+          </mesh>
+        </>
+      )}
+
+      {/* Gum blob visual: pink sphere on the bottom face */}
+      {hasGumBlob && isActive && (
+        <mesh position={[0, -height / 2 - radius * 0.25, 0]} castShadow>
+          <sphereGeometry args={[radius * 0.55, 16, 16]} />
+          <meshStandardMaterial
+            color="#ff6b9d"
+            roughness={0.2}
+            metalness={0.1}
+            emissive="#ff4d8a"
+            emissiveIntensity={0.15}
+          />
+        </mesh>
+      )}
+
+      {/* Magnetic glow: faint rotating ring */}
+      {hasMagnetGlow && isActive && (
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[radius * 1.4, radius * 0.08, 8, 32]} />
+          <meshStandardMaterial
+            color="#4ecdc4"
+            emissive="#4ecdc4"
+            emissiveIntensity={0.6}
+            transparent
+            opacity={0.7}
+          />
+        </mesh>
+      )}
     </RigidBody>
   )
 }

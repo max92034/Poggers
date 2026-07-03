@@ -251,10 +251,24 @@ export function ArenaScene({ playerCharId, aiCharId }: ArenaSceneProps) {
   const aimAngle = useGameStore((s) => s.aimAngle)
   const lockedPower = useGameStore((s) => s.lockedPower)
   const shotId = useGameStore((s) => s.shotId)
+  const playerItems = useGameStore((s) => s.playerItems)
+  const aiItems = useGameStore((s) => s.aiItems)
 
   const playerChar = getCharacter(playerCharId)
   const aiChar = getCharacter(aiCharId)
   const attackerChar = currentTurn === 'player' ? playerChar : aiChar
+  const attackerItems = currentTurn === 'player' ? playerItems : aiItems
+
+  // Baby Oil: whoever has it makes the opponent's pogs slippery during their turn.
+  // Player has Baby Oil → AI's turn: AI main pog + stack are slippery.
+  // AI has Baby Oil → Player's turn: player main pog + stack are slippery.
+  const playerHasBabyOil = playerItems.some((i) => i.id === 'baby-oil')
+  const aiHasBabyOil = aiItems.some((i) => i.id === 'baby-oil')
+
+  const stackSlippery =
+    (currentTurn === 'ai' && playerHasBabyOil) || (currentTurn === 'player' && aiHasBabyOil)
+  const playerMainSlippery = currentTurn === 'player' && aiHasBabyOil
+  const aiMainSlippery = currentTurn === 'ai' && playerHasBabyOil
 
   const slammerBodyRef = useRef<RapierRigidBody>(null)
 
@@ -294,6 +308,9 @@ export function ArenaScene({ playerCharId, aiCharId }: ArenaSceneProps) {
           playerChar={playerChar}
           aiChar={aiChar}
           shotId={shotId}
+          stackSlippery={stackSlippery}
+          playerMainSlippery={playerMainSlippery}
+          aiMainSlippery={aiMainSlippery}
         />
 
         <Slammer
@@ -302,6 +319,7 @@ export function ArenaScene({ playerCharId, aiCharId }: ArenaSceneProps) {
           aimAngle={aimAngle}
           lockedPower={lockedPower}
           shotId={shotId}
+          items={attackerItems}
           bodyRef={slammerBodyRef}
         />
 

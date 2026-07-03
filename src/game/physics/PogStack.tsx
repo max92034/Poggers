@@ -3,19 +3,28 @@ import { PogDisc } from './PogDisc'
 import type { Character } from '../characters/types'
 
 interface PogStackProps {
-  // All pogs in the stack use the same neutral look (a generic "cap" texture or palette).
-  // For MVP we tint them with a neutral palette so they read as a stack of blank pogs.
   neutralPalette: { primary: string; secondary: string; accent: string }
   playerChar: Character
   aiChar: Character
   shotId: number
+  stackSlippery?: boolean
+  playerMainSlippery?: boolean
+  aiMainSlippery?: boolean
 }
 
 /**
  * Renders the 8-pog neutral stack at the center, plus the player's main pog
  * on the +z side and the AI's main pog on the -z side.
  */
-export function PogStack({ neutralPalette, playerChar, aiChar, shotId }: PogStackProps) {
+export function PogStack({
+  neutralPalette,
+  playerChar,
+  aiChar,
+  shotId,
+  stackSlippery = false,
+  playerMainSlippery = false,
+  aiMainSlippery = false,
+}: PogStackProps) {
   const stack: { id: string; x: number; y: number; z: number; rotY: number }[] = []
   const baseY = ARENA.stackHeight / 2
   for (let i = 0; i < ARENA.stackCount; i++) {
@@ -42,6 +51,7 @@ export function PogStack({ neutralPalette, playerChar, aiChar, shotId }: PogStac
           charId="neutral"
           palette={neutralPalette}
           shotId={shotId}
+          slippery={stackSlippery}
         />
       ))}
 
@@ -54,6 +64,7 @@ export function PogStack({ neutralPalette, playerChar, aiChar, shotId }: PogStac
         isMain
         mainSide="player"
         shotId={shotId}
+        slippery={playerMainSlippery}
       />
 
       {/* AI main pog (north side, -z) */}
@@ -65,6 +76,7 @@ export function PogStack({ neutralPalette, playerChar, aiChar, shotId }: PogStac
         isMain
         mainSide="ai"
         shotId={shotId}
+        slippery={aiMainSlippery}
       />
     </group>
   )

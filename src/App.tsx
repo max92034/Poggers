@@ -8,6 +8,7 @@ import { AimPower } from './game/ui/AimPower'
 import { TurnIndicator } from './game/ui/TurnIndicator'
 import { Scoreboard } from './game/ui/Scoreboard'
 import { PopupLayer } from './game/ui/PopupLayer'
+import { DevMenu } from './game/ui/DevMenu'
 
 function GameScreen() {
   const playerCharId = useGameStore((s) => s.playerCharId)
@@ -20,6 +21,7 @@ function GameScreen() {
       <Scoreboard />
       <AimPower />
       <PopupLayer />
+      <DevMenu />
     </div>
   )
 }

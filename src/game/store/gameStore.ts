@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import type { PopupAction } from '../../art/prompts/popups'
 import { MATCH } from '../physics/constants'
+import type { SlammerItem } from '../items/types'
+import { getItem } from '../items/catalog'
 
 export type Screen = 'menu' | 'select' | 'game' | 'result'
 export type Side = 'player' | 'ai'
@@ -51,6 +53,10 @@ interface GameState {
   // Popups
   popups: Popup[]
 
+  // Rogue-lite items (dev menu for now)
+  playerItems: SlammerItem[]
+  aiItems: SlammerItem[]
+
   // ----- Actions -----
   goToSelect: () => void
   startMatch: (playerCharId: string, aiCharId: string) => void
@@ -67,6 +73,9 @@ interface GameState {
   queuePopup: (charId: string, action: PopupAction, side: Side) => void
   backToMenu: () => void
   playAgain: () => void
+  equipItem: (itemId: string) => void
+  unequipItem: (itemId: string) => void
+  clearItems: () => void
 }
 
 let popupIdCounter = 1
@@ -87,6 +96,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   flipsThisShot: 0,
   mainPogFlipped: null,
   popups: [],
+  playerItems: [],
+  aiItems: [],
 
   goToSelect: () => set({ screen: 'select' }),
 
@@ -288,4 +299,19 @@ export const useGameStore = create<GameState>((set, get) => ({
       mainPogFlipped: null,
       popups: [],
     }),
+
+  equipItem: (itemId) => {
+    const item = getItem(itemId)
+    if (!item) return
+    const current = get().playerItems
+    if (current.some((i) => i.id === itemId)) return
+    set({ playerItems: [...current, item] })
+  },
+
+  unequipItem: (itemId) =>
+    set((s) => ({
+      playerItems: s.playerItems.filter((i) => i.id !== itemId),
+    })),
+
+  clearItems: () => set({ playerItems: [], aiItems: [] }),
 }))
