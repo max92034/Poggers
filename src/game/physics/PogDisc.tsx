@@ -76,8 +76,13 @@ export function PogDisc({ position, rotation, charId, palette, isMain = false, m
     }
 
     if (nowFlipped && !flippedRef.current && !reportedRef.current) {
-      reportedRef.current = true
-      recordFlip(!!isMain, mainSide ?? null)
+      // Ring-out rule: a flipped pog only counts if it stays inside the colosseum.
+      const pos = body.translation()
+      const distFromCenter = Math.sqrt(pos.x * pos.x + pos.z * pos.z)
+      if (distFromCenter <= ARENA.colosseumRadius) {
+        reportedRef.current = true
+        recordFlip(!!isMain, mainSide ?? null)
+      }
     }
     flippedRef.current = nowFlipped
   })

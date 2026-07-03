@@ -8,10 +8,7 @@ import './AimPower.css'
  * Bottom-of-screen overlay that handles the aim + power input flow.
  * - During 'player_aim': horizontal angle slider + "Lock Aim" button.
  * - During 'player_power': oscillating power bar + "Launch" button.
- * - Hidden during all other phases.
- *
- * Per user pref: single primary action button (no redundant buttons),
- * controls accessible at bottom of screen for mobile.
+ * Hidden during all other phases.
  */
 export function AimPower() {
   const phase = useGameStore((s) => s.phase)
@@ -26,7 +23,6 @@ export function AimPower() {
   const rafRef = useRef<number | null>(null)
 
   // Oscillate power during player_power phase.
-  // Higher control stat → slower oscillation → easier to time.
   useEffect(() => {
     if (phase !== 'player_power') return
     const speed = STAT_PHYSICS.powerMeterSpeed(playerChar.stats.control)
@@ -35,7 +31,6 @@ export function AimPower() {
     const tick = (now: number) => {
       if (!mounted) return
       const t = (now - startTime) / 1000
-      // Sine wave from 0 to 100, starting at 0
       const v = (Math.sin(t * speed - Math.PI / 2) + 1) / 2 * 100
       setLivePower(v)
       rafRef.current = requestAnimationFrame(tick)
@@ -51,39 +46,58 @@ export function AimPower() {
 
   const angleDeg = (aimAngle * 180) / Math.PI
   const maxDeg = (STAT_PHYSICS.aimRangeRad * 180) / Math.PI
+  const aimPercent = ((angleDeg + maxDeg) / (maxDeg * 2)) * 100
 
   return (
     <div className="aim-power">
       {phase === 'player_aim' && (
         <div className="aim-row">
-          <div className="aim-label">
-            <span className="aim-title">Aim</span>
-            <span className="aim-value">{angleDeg > 0 ? '+' : ''}{angleDeg.toFixed(0)}°</span>
+          <div className="aim-row__label">Aim</div>
+          <div className="aim-row__control">
+            <div className="slider-track">
+              <div className="slider-track__center" />
+              <div
+                className="slider-track__thumb"
+                style={{ left: `${Math.min(Math.max(aimPercent, 0), 100)}%` }}
+              />
+              <input
+                className="aim-slider"
+                type="range"
+                min={-maxDeg}
+                max={maxDeg}
+                step={1}
+                value={angleDeg}
+                onChange={(e) => setAim((parseFloat(e.target.value) * Math.PI) / 180)}
+              />
+            </div>
+            <div className="slider-labels">
+              <span>-{maxDeg.toFixed(0)}°</span>
+              <span>0°</span>
+              <span>+{maxDeg.toFixed(0)}°</span>
+            </div>
           </div>
-          <input
-            className="aim-slider"
-            type="range"
-            min={-maxDeg}
-            max={maxDeg}
-            step={1}
-            value={angleDeg}
-            onChange={(e) => setAim((parseFloat(e.target.value) * Math.PI) / 180)}
-          />
-          <button className="btn" onClick={enterPowerPhase}>Lock Aim</button>
+          <button className="btn-lock" onClick={enterPowerPhase}>Lock</button>
         </div>
       )}
 
       {phase === 'player_power' && (
-        <div className="power-row">
-          <div className="power-label">
-            <span className="aim-title">Power</span>
-            <span className="aim-value">{livePower.toFixed(0)}%</span>
+        <div className="aim-row">
+          <div className="aim-row__label">Power</div>
+          <div className="aim-row__control">
+            <div className="power-bar">
+              <div className="power-bar__fill" style={{ width: `${livePower}%` }} />
+              <div className="power-bar__sweetspot" style={{ left: '85%', width: '10%' }} />
+              {[10, 20, 30, 40, 50, 60, 70, 80, 90].map((pct) => (
+                <div
+                  key={pct}
+                  className="power-bar__segment"
+                  style={{ left: `${pct}%` }}
+                />
+              ))}
+            </div>
+            <div className="power-value">{livePower.toFixed(0)}%</div>
           </div>
-          <div className="power-bar">
-            <div className="power-fill" style={{ width: `${livePower}%` }} />
-            <div className="power-sweet-spot" style={{ left: '85%', width: '10%' }} />
-          </div>
-          <button className="btn" onClick={() => lockPower(livePower)}>Launch</button>
+          <button className="btn-launch" onClick={() => lockPower(livePower)}>Launch</button>
         </div>
       )}
     </div>

@@ -54,7 +54,10 @@ export function ResultScreen() {
             <div className="result-side-score">{playerScore}</div>
           </div>
 
-          <div className="result-vs">vs</div>
+          <div className="result-vs">
+            <span className="result-vs-text">VS</span>
+            <span className="result-vs-label">Final Score</span>
+          </div>
 
           <div className="result-side result-side-ai">
             <div className="result-portrait" style={{ background: aiChar.palette.primary }}>

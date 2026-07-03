@@ -98,8 +98,11 @@ export function CharacterSelect() {
       </div>
 
       <footer className="cs-footer">
+        <span className="cs-selected-label">
+          {selected ? `Selected: ${getCharacter(selected).name}` : 'Select a character'}
+        </span>
         <button className="btn cs-start" disabled={!selected} onClick={handleStart}>
-          {selected ? `Start Match as ${getCharacter(selected).name}` : 'Select a character'}
+          Start Match
         </button>
       </footer>
     </div>

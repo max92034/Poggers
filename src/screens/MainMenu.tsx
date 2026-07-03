@@ -9,19 +9,23 @@ export function MainMenu() {
 
   return (
     <div className="main-menu">
-      <div className="menu-bg-glow" />
-      <div className="menu-content">
-        <h1 className="menu-title">Poggers</h1>
-        <p className="menu-subtitle">A 3D anime pog battle</p>
+      <div className="main-menu__glow" />
+      <div className="main-menu__disc" />
+      <span className="main-menu__version" aria-hidden="true">v2.30</span>
 
-        <div className="menu-actions">
-          <button className="btn menu-play" onClick={goToSelect}>
-            <Play size={18} /> Play
-          </button>
-          <button className="btn btn-secondary menu-howto" onClick={() => setShowHowTo(true)}>
-            <Info size={18} /> How to Play
-          </button>
-        </div>
+      <div className="main-menu__content">
+        <h1 className="main-menu__title">Poggers</h1>
+        <p className="main-menu__subtitle">Neo-Arcade Combat Arena</p>
+
+        <button className="btn main-menu__btn" onClick={goToSelect}>
+          <Play size={18} /> Enter Arena
+        </button>
+        <button
+          className="btn-secondary main-menu__btn main-menu__btn--secondary"
+          onClick={() => setShowHowTo(true)}
+        >
+          <Info size={18} /> How to Play
+        </button>
       </div>
 
       {showHowTo && (

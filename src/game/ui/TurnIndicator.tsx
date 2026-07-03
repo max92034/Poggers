@@ -28,22 +28,24 @@ export function TurnIndicator() {
 
   return (
     <div className="turn-indicator">
-      <div className="turn-side turn-side-ai">
-        <span className="turn-name">{aiChar.name}</span>
+      <div className="turn-plate turn-plate--ai">
+        <span className="turn-name turn-name--cyan">{aiChar.name}</span>
         <span className="turn-archetype">{aiChar.archetype}</span>
       </div>
 
-      <div className="turn-center">
-        <div className="turn-round">Round {round} / {MATCH.maxRounds}</div>
-        <div className={`turn-status ${currentTurn === 'player' ? 'is-player' : 'is-ai'}`}>
-          <Icon size={14} className={phase === 'intro' || phase === 'resolving' || phase === 'ai_thinking' ? 'spin' : ''} />
-          <span>{meta.text}</span>
-        </div>
+      <div className="turn-vs">
+        <span>Round</span>
+        <span>{round}/{MATCH.maxRounds}</span>
       </div>
 
-      <div className="turn-side turn-side-player">
+      <div className="turn-plate turn-plate--player">
         <span className="turn-name">{playerChar.name}</span>
         <span className="turn-archetype">{playerChar.archetype}</span>
+      </div>
+
+      <div className={`turn-phase-pill ${currentTurn === 'player' ? 'is-player' : 'is-ai'}`}>
+        <Icon size={14} className={phase === 'intro' || phase === 'resolving' || phase === 'ai_thinking' ? 'spin' : ''} />
+        <span>{meta.text}</span>
       </div>
     </div>
   )

@@ -21,6 +21,12 @@ export const ARENA = {
   slammerTargetHeight: 0.4, // top of the stack
   slammerRadius: 0.3, // smaller than pogs so it can hit off-center for more flip
   slammerHeight: 0.1, // slightly thicker for more mass
+  // Colosseum ring that encloses the play area. Pogs flipped outside this ring
+  // do not score (ring-out). Main pogs at ±mainPogOffset must stay inside.
+  colosseumRadius: 4.5,
+  colosseumWallHeight: 1.0,
+  colosseumWallThickness: 0.12,
+  colosseumSegments: 20,
 } as const
 
 // Stat-to-physics conversion helpers. Stats are 1-10; we map to physical values.

@@ -6,6 +6,7 @@ import * as THREE from 'three'
 import { ARENA } from '../physics/constants'
 import { PogStack } from '../physics/PogStack'
 import { Slammer } from '../physics/Slammer'
+import { Colosseum } from '../physics/Colosseum'
 import { useGameStore } from '../store/gameStore'
 import { getCharacter } from '../characters/roster'
 import { chooseAiShot } from '../ai/aiBrain'
@@ -156,6 +157,15 @@ function CameraRig({ slammerRef }: { slammerRef: React.MutableRefObject<RapierRi
   const lookAtRef = useRef(new THREE.Vector3(0, 0.5, 0))
   const tmpPos = useRef(new THREE.Vector3())
   const tmpLook = useRef(new THREE.Vector3())
+  const initializedRef = useRef(false)
+
+  useEffect(() => {
+    if (!initializedRef.current) {
+      initializedRef.current = true
+      camera.position.set(0, 6, 9)
+      camera.lookAt(0, 0.5, 0)
+    }
+  }, [camera])
 
   useFrame(() => {
     if (phase === 'launching' && slammerRef.current) {
@@ -166,7 +176,7 @@ function CameraRig({ slammerRef }: { slammerRef: React.MutableRefObject<RapierRi
       camera.position.lerp(tmpPos.current, 0.08)
       lookAtRef.current.lerp(tmpLook.current, 0.08)
       camera.lookAt(lookAtRef.current)
-    } else {
+    } else if (phase === 'resolving') {
       tmpPos.current.set(0, 6, 9)
       tmpLook.current.set(0, 0.5, 0)
       camera.position.lerp(tmpPos.current, 0.06)
@@ -287,7 +297,7 @@ export function ArenaScene({ playerCharId, aiCharId }: ArenaSceneProps) {
   return (
     <Canvas
       shadows
-      camera={{ position: [0, 6, 9], fov: 50, near: 0.1, far: 100 }}
+      camera={{ fov: 50, near: 0.1, far: 100 }}
       dpr={[1, 2]}
       gl={{ antialias: true }}
     >
@@ -312,6 +322,7 @@ export function ArenaScene({ playerCharId, aiCharId }: ArenaSceneProps) {
       <Physics gravity={[0, -9.81, 0]} timeStep="vary">
         <ArenaFloor />
         <ArenaWalls />
+        <Colosseum />
 
         <PogStack
           neutralPalette={NEUTRAL_PALETTE}
@@ -341,17 +352,19 @@ export function ArenaScene({ playerCharId, aiCharId }: ArenaSceneProps) {
 
       <CameraRig slammerRef={slammerBodyRef} />
 
-      {phase === 'launching' && <ImpactBurst />}
-
       <OrbitControls
         enablePan={false}
         enableZoom={true}
         enableRotate={false}
         enabled={phase !== 'launching' && phase !== 'resolving'}
-        minDistance={6}
-        maxDistance={14}
+        minDistance={0.3}
+        maxDistance={20}
         target={[0, 0.5, 0]}
+        zoomSpeed={0.35}
+        makeDefault
       />
+
+      {phase === 'launching' && <ImpactBurst />}
     </Canvas>
   )
 }

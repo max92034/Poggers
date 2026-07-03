@@ -1,16 +1,59 @@
 :root {
-  --bg: #0b0d12;
-  --panel: #161922;
-  --panel-2: #1f2330;
-  --border: #2a2f3d;
-  --text: #f5f7fa;
-  --text-dim: #a0a8b8;
-  --accent: #6ea8ff;
-  --accent-2: #ff8fb1;
-  --good: #4ade80;
-  --warn: #fbbf24;
-  --bad: #f87171;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* ── Primary Backgrounds ── */
+  --bg: #0a0a0f;
+  --bg-elevated: #12121a;
+  --panel: #161622;
+  --panel-2: #1e1e2e;
+  --border: #2a2a3d;
+
+  /* ── Text ── */
+  --text: #f0f0f5;
+  --text-dim: #7a7a8f;
+
+  /* ── Accent Colors (Neo-Arcade) ── */
+  --accent: #ff2a6d;        /* Hot Magenta - player, primary */
+  --accent-light: #ff5c8a;  /* Lighter magenta */
+  --accent-2: #05d9e8;      /* Electric Cyan - AI, secondary */
+  --accent-warm: #ffb800;   /* Amber - sweet spot, critical */
+  --good: #00f5d4;
+  --warn: #ffb800;
+  --bad: #ff2a6d;
+
+  /* ── Fonts ── */
+  --font-display: 'Orbitron', 'Segoe UI', sans-serif;
+  --font-body: 'Space Grotesk', 'Segoe UI', sans-serif;
+
+  /* ── Type Scale ── */
+  --text-xs: 10px;
+  --text-sm: 11px;
+  --text-base: 14px;
+  --text-md: 16px;
+  --text-lg: 18px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-3xl: 32px;
+  --text-4xl: 48px;
+  --text-5xl: 64px;
+  --text-display: clamp(64px, 14vw, 140px);
+
+  /* ── Radius (Angular Combat Feel) ── */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+
+  /* ── Shadows ── */
+  --shadow-glow-magenta: 0 0 30px rgba(255, 42, 109, 0.3);
+  --shadow-glow-cyan: 0 0 30px rgba(5, 217, 232, 0.3);
+  --shadow-glow-amber: 0 0 40px rgba(255, 184, 0, 0.4);
+
+  /* ── Clip Paths ── */
+  --clip-btn: polygon(8% 0, 100% 0, 92% 100%, 0% 100%);
+  --clip-card: polygon(8% 0, 92% 0, 100% 4%, 100% 96%, 92% 100%, 8% 100%, 0 96%, 0 4%);
+  --clip-diamond: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  --clip-left-plate: polygon(0 0, 92% 0, 100% 50%, 92% 100%, 0 100%);
+  --clip-right-plate: polygon(8% 0, 100% 0, 100% 100%, 8% 100%, 0 50%);
+
+  font-family: var(--font-body);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -37,10 +80,31 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   background: var(--bg);
 }
 
+/* Cinematic film grain overlay */
+.app-shell::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9998;
+  opacity: 0.4;
+}
+
 .game-screen {
   position: absolute;
   inset: 0;
   overflow: hidden;
+}
+
+/* Vignette overlay for gameplay only */
+.game-screen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, transparent 60%, rgba(0, 0, 0, 0.4) 100%);
+  pointer-events: none;
+  z-index: 5;
 }
 
 .dev-menu-wrapper {
@@ -54,21 +118,143 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   pointer-events: auto;
 }
 
-/* ---- shared button styles ---- */
+/* ── Shared Animation Keyframes ── */
+@keyframes sheen {
+  0%, 100% { left: -100%; }
+  50% { left: 100%; }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes vs-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.2); opacity: 1; }
+}
+
+@keyframes glitch {
+  0% { transform: translateX(-10px); opacity: 0; clip-path: inset(0 100% 0 0); }
+  20% { transform: translateX(5px); clip-path: inset(0 80% 0 0); }
+  40% { transform: translateX(-5px); clip-path: inset(0 40% 0 0); }
+  60% { transform: translateX(2px); clip-path: inset(0 20% 0 0); }
+  100% { transform: translateX(0); opacity: 1; clip-path: inset(0 0 0 0); }
+}
+
+@keyframes impact {
+  0% { transform: scale(0.5) rotate(-5deg); opacity: 0; }
+  50% { transform: scale(1.05) rotate(2deg); }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+@keyframes bg-drift {
+  0% { transform: translate(-10%, -10%) scale(1); }
+  100% { transform: translate(10%, 10%) scale(1.2); }
+}
+
+@keyframes launch-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(255, 42, 109, 0.4); filter: brightness(1); }
+  50% { box-shadow: 0 0 20px rgba(255, 42, 109, 0.7); filter: brightness(1.15); }
+}
+
+/* ── Shared Button Styles ── */
 .btn {
-  padding: 12px 24px;
-  border-radius: 10px;
-  background: var(--accent);
-  color: #0b0d12;
-  font-weight: 600;
-  font-size: 15px;
-  transition: transform 0.12s ease, background 0.12s ease;
+  position: relative;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-lg);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--bg);
+  background: linear-gradient(135deg, var(--accent), var(--accent-light));
+  clip-path: var(--clip-btn);
+  padding: 18px 48px;
+  border: none;
+  transition: filter 0.2s ease, transform 0.15s ease;
 }
-.btn:hover { background: #82b4ff; }
+
+.btn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+  animation: sheen 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.btn:hover { filter: brightness(1.15); }
 .btn:active { transform: scale(0.97); }
+
 .btn-secondary {
-  background: var(--panel-2);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--text-base);
   color: var(--text);
+  background: transparent;
   border: 1px solid var(--border);
+  clip-path: var(--clip-btn);
+  padding: 14px 36px;
 }
-.btn-secondary:hover { background: #2a2f3d; }
+
+.btn-secondary:hover { background: var(--panel-2); }
+
+/* ── Shared Panel / Stat Utilities ── */
+.combat-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.stat-bar {
+  height: 10px;
+  background: var(--panel-2);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  position: relative;
+}
+
+.stat-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-sm);
+  position: relative;
+}
+
+.stat-bar-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.2) 50%, transparent 100%);
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+/* CRT scanline overlay (global) */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9997;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.06) 2px,
+    rgba(0, 0, 0, 0.06) 4px
+  );
+  opacity: 0.4;
+}

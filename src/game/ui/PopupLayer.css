@@ -1,25 +1,30 @@
-/* The stage is a transparent overlay that contains all currently-visible popups.
-   Each popup positions itself within the stage based on its action type
-   (critical = top, defeat = bottom, taunt = center). */
 .popup-stage {
   position: absolute;
   inset: 0;
   z-index: 50;
-  pointer-events: none; /* children opt-in */
+  pointer-events: none;
 }
 
 .popup-layer {
   position: absolute;
   display: flex;
-  align-items: center;
-  justify-content: center;
   cursor: pointer;
   pointer-events: auto;
   animation: popup-fade-in 0.18s ease-out;
 }
 
-/* Subtle dim behind the popup (covers the whole screen) */
-.popup-layer::before {
+/* ---- Position variants ---- */
+
+/* Center (taunt) — fills the screen with dim */
+.popup-pos-center {
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.popup-pos-center::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -29,35 +34,40 @@
   z-index: -1;
 }
 
-/* ---- Position variants ---- */
-
-/* Center (used for taunt) — fills the screen */
-.popup-pos-center {
-  inset: 0;
-  flex-direction: column;
-  gap: 12px;
-}
-
-/* Top (used for critical — attacker's slam) */
+/* Top-right (critical) */
 .popup-pos-top {
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 50vh;
+  top: 140px;
+  right: 40px;
+  width: 200px;
+  background: rgba(8, 10, 16, 0.7);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  border: 2px solid var(--accent-warm);
+  box-shadow: 0 0 40px rgba(255, 184, 0, 0.3);
+  padding: 16px;
+  z-index: 30;
+  animation: impact 0.6s ease-out forwards;
+  transform-origin: top right;
   flex-direction: column;
   gap: 8px;
-  padding-top: 24px;
 }
 
-/* Bottom (used for defeat — defender who got slammed) */
+/* Bottom-left (defeat) */
 .popup-pos-bottom {
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 50vh;
+  bottom: 200px;
+  left: 24px;
+  width: 160px;
+  background: rgba(8, 10, 16, 0.7);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  border: 1px solid rgba(255, 42, 109, 0.5);
+  padding: 12px;
+  z-index: 30;
+  opacity: 0.6;
+  animation: impact 0.6s ease-out forwards;
+  transform-origin: bottom left;
   flex-direction: column-reverse;
-  gap: 8px;
-  padding-bottom: 24px;
+  gap: 6px;
 }
 
 /* ---- Art wrapper ---- */
@@ -69,10 +79,8 @@
   justify-content: center;
   max-width: 80vw;
   max-height: 100%;
-  /* Default 4:3 landscape aspect ratio — updated on image load to the
-     image's natural ratio so portrait images display fully without cropping. */
   aspect-ratio: 4 / 3;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   box-shadow:
     0 16px 60px rgba(0, 0, 0, 0.55),
@@ -81,25 +89,24 @@
   background: rgba(0, 0, 0, 0.25);
 }
 
-/* Size the wrapper based on the popup's position so critical + defeat can sit
-   on opposite halves of the screen without overlapping. */
 .popup-pos-center .popup-art-wrap {
   width: min(70vw, 720px);
   max-height: 70vh;
 }
-.popup-pos-top .popup-art-wrap {
-  width: min(50vw, 520px);
-  max-height: calc(50vh - 80px);
-}
+
+.popup-pos-top .popup-art-wrap,
 .popup-pos-bottom .popup-art-wrap {
-  width: min(50vw, 520px);
-  max-height: calc(50vh - 80px);
+  width: 100%;
+  max-height: 180px;
+}
+
+.popup-pos-bottom .popup-art-wrap {
+  max-height: 110px;
 }
 
 .popup-art {
   width: 100%;
   height: 100%;
-  /* contain = show full image, no cropping */
   object-fit: contain;
   display: block;
   animation: popup-zoom 2.4s ease-out forwards;
@@ -112,6 +119,7 @@
   align-items: center;
   justify-content: center;
 }
+
 .popup-art-fallback-inner {
   display: flex;
   flex-direction: column;
@@ -120,11 +128,13 @@
   text-align: center;
   padding: 24px;
 }
+
 .popup-fallback-name {
   font-size: 36px;
   font-weight: 800;
   letter-spacing: 0.04em;
 }
+
 .popup-fallback-arch {
   font-size: 16px;
   opacity: 0.7;
@@ -141,27 +151,33 @@
   pointer-events: none;
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
 }
+
 .popup-name {
   font-size: 22px;
   font-weight: 800;
   letter-spacing: 0.04em;
 }
+
 .popup-action {
+  font-family: var(--font-display);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   color: #f5f7fa;
   opacity: 0.9;
 }
 
 /* Action-specific accent colors */
 .popup-action-critical .popup-action {
-  color: #fbbf24;
+  color: var(--accent-warm);
+  animation: popup-shake 0.3s ease-in-out 0.6s;
 }
+
 .popup-action-defeat .popup-action {
-  color: #f87171;
+  color: var(--accent);
 }
+
 .popup-action-taunt .popup-action {
   color: var(--accent);
 }
@@ -169,13 +185,10 @@
 /* ---- Animations ---- */
 
 @keyframes popup-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
+
 @keyframes popup-pop {
   0% {
     transform: scale(0.92);
@@ -186,34 +199,61 @@
     opacity: 1;
   }
 }
+
 @keyframes popup-zoom {
-  0% {
-    transform: scale(1);
-  }
-  100% {
-    transform: scale(1.06);
-  }
+  0% { transform: scale(1); }
+  100% { transform: scale(1.06); }
+}
+
+@keyframes popup-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
 }
 
 /* ---- Mobile ---- */
 
-@media (max-width: 600px) {
+@media (max-width: 640px) {
+  .popup-pos-top {
+    width: 150px;
+    right: 16px;
+    top: 120px;
+    padding: 10px;
+  }
+
+  .popup-pos-bottom {
+    width: 120px;
+    left: 12px;
+    padding: 8px;
+  }
+
   .popup-pos-top .popup-art-wrap,
   .popup-pos-bottom .popup-art-wrap {
-    width: min(70vw, 360px);
+    max-height: 120px;
   }
+
+  .popup-pos-bottom .popup-art-wrap {
+    max-height: 80px;
+  }
+
   .popup-pos-center .popup-art-wrap {
     width: min(90vw, 480px);
   }
+
   .popup-fallback-name {
     font-size: 26px;
   }
+
   .popup-fallback-arch {
     font-size: 13px;
   }
+
   .popup-name {
     font-size: 18px;
   }
+
   .popup-action {
     font-size: 12px;
   }

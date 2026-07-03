@@ -57,7 +57,11 @@ interface GameState {
   playerItems: SlammerItem[]
   aiItems: SlammerItem[]
 
+  // Camera zoom distance from target (for preset distance workaround)
+  cameraDistance: number
+
   // ----- Actions -----
+  setCameraDistance: (distance: number) => void
   goToSelect: () => void
   startMatch: (playerCharId: string, aiCharId: string) => void
   beginPlayerTurn: () => void
@@ -98,8 +102,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   popups: [],
   playerItems: [],
   aiItems: [],
+  cameraDistance: 9,
 
   goToSelect: () => set({ screen: 'select' }),
+  setCameraDistance: (distance) => set({ cameraDistance: distance }),
 
   startMatch: (playerCharId, aiCharId) =>
     set({
@@ -118,6 +124,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       flipsThisShot: 0,
       mainPogFlipped: null,
       popups: [],
+      cameraDistance: 9,
     }),
 
   beginPlayerTurn: () => {

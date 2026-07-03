@@ -1,115 +1,118 @@
 .main-menu {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   background:
-    radial-gradient(ellipse at 20% 30%, rgba(110, 168, 255, 0.18) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 70%, rgba(255, 143, 177, 0.15) 0%, transparent 50%),
-    var(--bg);
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255, 42, 109, 0.08), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 30% 100%, rgba(5, 217, 232, 0.05), transparent 70%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg-elevated) 100%);
 }
 
-.menu-bg-glow {
+.main-menu__glow {
   position: absolute;
-  width: 60vmin;
-  height: 60vmin;
+  width: 600px;
+  height: 600px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(110, 168, 255, 0.15) 0%, transparent 60%);
-  filter: blur(40px);
-  animation: glow-drift 12s ease-in-out infinite alternate;
+  background: radial-gradient(circle, rgba(255, 42, 109, 0.12), transparent 60%);
+  filter: blur(80px);
+  top: -200px;
+  left: 50%;
+  transform: translateX(-50%);
+  animation: bg-drift 12s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: 1;
 }
 
-.menu-content {
+.main-menu__disc {
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 20%, rgba(42, 42, 61, 0.3) 21%, transparent 22%),
+    radial-gradient(circle at 50% 50%, transparent 40%, rgba(42, 42, 61, 0.2) 41%, transparent 42%),
+    radial-gradient(circle at 50% 50%, transparent 58%, rgba(42, 42, 61, 0.15) 59%, transparent 60%),
+    linear-gradient(135deg, var(--panel), var(--panel-2));
+  border: 2px solid var(--border);
+  opacity: 0.6;
+  bottom: 80px;
+  right: 60px;
+  animation: float 5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.main-menu__content {
   position: relative;
-  z-index: 1;
+  z-index: 10;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: 28px;
   text-align: center;
   padding: 24px;
 }
 
-.menu-title {
-  font-size: clamp(56px, 12vw, 120px);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  margin: 0;
-  background: linear-gradient(135deg, #6ea8ff 0%, #ff8fb1 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
+.main-menu__title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-display);
+  line-height: 1;
   color: transparent;
-  text-shadow: 0 0 60px rgba(110, 168, 255, 0.3);
+  -webkit-text-stroke: 2px var(--accent);
+  text-shadow:
+    0 0 40px rgba(255, 42, 109, 0.4),
+    0 0 80px rgba(255, 42, 109, 0.2),
+    0 0 120px rgba(255, 42, 109, 0.1);
+  animation:
+    float 4s ease-in-out infinite,
+    main-title-glow 3s ease-in-out infinite;
+  user-select: none;
 }
 
-.menu-subtitle {
-  font-size: clamp(14px, 2vw, 18px);
+@keyframes main-title-glow {
+  0%, 100% {
+    text-shadow:
+      0 0 40px rgba(255, 42, 109, 0.3),
+      0 0 80px rgba(255, 42, 109, 0.15),
+      0 0 120px rgba(255, 42, 109, 0.05);
+  }
+  50% {
+    text-shadow:
+      0 0 40px rgba(255, 42, 109, 0.6),
+      0 0 80px rgba(255, 42, 109, 0.3),
+      0 0 120px rgba(255, 42, 109, 0.1);
+  }
+}
+
+.main-menu__subtitle {
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--text-md);
   color: var(--text-dim);
-  margin: 0 0 24px;
+  letter-spacing: 0.06em;
+  margin-top: -16px;
 }
 
-.menu-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  width: min(280px, 80vw);
-}
-
-.menu-actions .btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 14px 24px;
-  font-size: 16px;
-}
-
-.menu-play {
-  background: linear-gradient(135deg, #6ea8ff 0%, #82b4ff 100%);
-}
-.menu-play:hover { background: linear-gradient(135deg, #82b4ff 0%, #9cc1ff 100%); }
-
-@keyframes glow-drift {
-  0% { transform: translate(-10%, -10%) scale(1); }
-  100% { transform: translate(10%, 10%) scale(1.2); }
-}
-
-/* How-to modal */
-.howto-modal {
+.main-menu__version {
   position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  padding: 16px;
+  bottom: 16px;
+  right: 20px;
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  color: var(--border);
+  z-index: 10;
+  pointer-events: none;
 }
-.howto-card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 28px;
-  max-width: 520px;
-  width: 100%;
-  max-height: 80vh;
-  overflow-y: auto;
+
+.main-menu__btn {
+  min-width: 220px;
 }
-.howto-card h2 {
-  margin: 0 0 16px;
-  font-size: 22px;
-  color: var(--text);
+
+.main-menu__btn--secondary {
+  margin-top: -8px;
 }
-.howto-card ol {
-  margin: 0 0 20px 20px;
-  color: var(--text-dim);
-  line-height: 1.6;
-  font-size: 14px;
-}
-.howto-card ol li { margin-bottom: 8px; }
-.howto-card strong { color: var(--text); }
-.howto-card em { color: var(--accent); font-style: normal; font-weight: 600; }
