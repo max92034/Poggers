@@ -21,9 +21,6 @@ function GameScreen() {
       <Scoreboard />
       <AimPower />
       <PopupLayer />
-      <div className="dev-menu-wrapper">
-        <DevMenu />
-      </div>
     </div>
   )
 }
@@ -33,7 +30,6 @@ export default function App() {
   const phase = useGameStore((s) => s.phase)
   const popups = useGameStore((s) => s.popups)
 
-  // Transition: when defeat popups are all dismissed, go to result screen.
   useEffect(() => {
     if (screen === 'game' && phase === 'defeat' && popups.length === 0) {
       useGameStore.setState({ screen: 'result' })
@@ -46,6 +42,11 @@ export default function App() {
       {screen === 'select' && <CharacterSelect />}
       {screen === 'game' && <GameScreen />}
       {screen === 'result' && <ResultScreen />}
+      {screen === 'game' && (
+        <div className="dev-menu-wrapper">
+          <DevMenu />
+        </div>
+      )}
     </div>
   )
 }
