@@ -323,11 +323,11 @@ export function ArenaScene({ playerCharId, aiCharId }: ArenaSceneProps) {
           bodyRef={slammerBodyRef}
         />
 
-        {showAim && <AimLine aimAngle={aimAngle} side={currentTurn} />}
-        {showAim && <AimMarker side={currentTurn} />}
-
         <PhaseDirector />
       </Physics>
+
+      {showAim && <AimLine aimAngle={aimAngle} side={currentTurn} />}
+      {showAim && <AimMarker side={currentTurn} />}
 
       <CameraRig slammerRef={slammerBodyRef} />
 

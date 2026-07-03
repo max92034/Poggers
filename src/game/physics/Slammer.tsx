@@ -64,6 +64,8 @@ export function Slammer({
 
   // Sticky gum: track which pog bodies are stuck to this slammer
   const stuckBodiesRef = useRef<RapierRigidBody[]>([])
+  // Flag: has the slammer hit any pog yet? Triggers rotation air resistance.
+  const hasHitPogRef = useRef(false)
 
   const phase = useGameStore((s) => s.phase)
   const enterResolving = useGameStore((s) => s.enterResolving)
@@ -96,6 +98,7 @@ export function Slammer({
   useEffect(() => {
     if (phase === 'launching' && firedShotIdRef.current !== shotId) {
       stuckBodiesRef.current = []
+      hasHitPogRef.current = false
     }
   }, [phase, shotId])
 
@@ -121,8 +124,9 @@ export function Slammer({
     }
   }, [phase, shotId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Collision handler for gum stickiness
+  // Collision handler for gum stickiness and rotation air resistance trigger
   const handleCollisionEnter = (payload: CollisionEnterPayload) => {
+    hasHitPogRef.current = true
     if (!hasGumBlob) return
     const otherBody = payload.other.rigidBody
     if (!otherBody) return
@@ -205,6 +209,22 @@ export function Slammer({
           z: pogVel.z + (sVel.z - pogVel.z) * velBlend * delta + diff.z * pullStrength * delta,
         }
         pogBody.setLinvel(newVel, true)
+      }
+    }
+
+    // Rotation air resistance: after impact with pogs, slow down spin dramatically.
+    // This prevents the slammer from spinning indefinitely after hitting the stack.
+    if (hasHitPogRef.current) {
+      const angVel = body.angvel()
+      const angSpeed = Math.sqrt(angVel.x * angVel.x + angVel.y * angVel.y + angVel.z * angVel.z)
+      if (angSpeed > 0.1) {
+        const airResistance = 0.12 // Strong damping coefficient
+        const newAngVel = {
+          x: angVel.x * (1 - airResistance),
+          y: angVel.y * (1 - airResistance),
+          z: angVel.z * (1 - airResistance),
+        }
+        body.setAngvel(newAngVel, true)
       }
     }
 
