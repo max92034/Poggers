@@ -55,7 +55,8 @@ function ArenaWalls() {
   )
 }
 
-/** Thin line showing predicted aim direction during player_aim phase. */
+/** Thin line showing predicted aim direction during player_aim phase.
+ *  Rendered as a pure Three.js object with NO Rapier physics bodies. */
 function AimLine({ aimAngle, side }: { aimAngle: number; side: 'player' | 'ai' }) {
   const zSign = side === 'player' ? 1 : -1
   const spawn = new THREE.Vector3(0, ARENA.slammerSpawnHeight, zSign * 0.1)
@@ -72,16 +73,25 @@ function AimLine({ aimAngle, side }: { aimAngle: number; side: 'player' | 'ai' }
       dashed
       dashSize={0.2}
       gapSize={0.15}
+      // Purely visual: no shadows, no raycasting, no physics influence.
+      frustumCulled={false}
     />
   )
 }
 
-/** Marker showing where the slammer will spawn during aim phase. */
+/** Marker showing where the slammer will spawn during aim phase.
+ *  Pure visual, zero colliders. */
 function AimMarker({ side }: { side: 'player' | 'ai' }) {
   const zSign = side === 'player' ? 1 : -1
   const pos: [number, number, number] = [0, ARENA.slammerSpawnHeight, zSign * 0.1]
   return (
-    <mesh position={pos}>
+    <mesh
+      position={pos}
+      // Purely visual: no shadows, no raycasting, no physics influence.
+      castShadow={false}
+      receiveShadow={false}
+      frustumCulled={false}
+    >
       <sphereGeometry args={[0.08, 16, 16]} />
       <meshStandardMaterial color="#6ea8ff" emissive="#6ea8ff" emissiveIntensity={0.6} />
     </mesh>
