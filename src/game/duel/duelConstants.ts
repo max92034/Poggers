@@ -77,8 +77,19 @@ export const DUEL = {
   // flip motion. p = normalized gust power 0..1 at the target.
   // J = base + scale·p N·s at the edge of the 0.03kg chip: flip threshold
   // sits around J≈0.05; the +scale ceiling stays below somersault territory.
-  gustEdgeImpulseBase: 0.015,
-  gustEdgeImpulseScale: 0.065,
+  gustEdgeImpulseBase: 0.018,
+  gustEdgeImpulseScale: 0.055,
+  gustJSomersault: 0.085,      // N·s per unit weight — impulse saturates here so
+                               // extra power NEVER somersaults a chip back upright.
+                               // Measured on the lens chip (with the lie-down
+                               // damper): teeter <0.035, clean flips 0.04–0.08,
+                               // over-rotation returns ≥0.10.
+  // Chip-parameter physics (the mod system's foundation):
+  camberFlatnessPenalty: 0.3,  // a domed chip can't land flat → weaker own gust
+  camberExposureShield: 0.65,  // …but sheds incoming gusts (defense) — a fully
+                               // warped chip can't be flipped by raw power alone
+  thicknessExposureLip: 0.45,  // a tall rim is a lip the gust catches (per +100% thickness)
+  minExposure: 0.15,           // no chip is fully gust-proof
   gustSlide: 0.3,           // outward fraction of the edge impulse
   gustPreLift: 0.02,        // m — unstick the target from the ground before the
                             // kick so the rising rim doesn't grind away the spin

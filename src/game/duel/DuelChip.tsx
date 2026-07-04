@@ -3,9 +3,9 @@ import { useFrame } from '@react-three/fiber'
 import { RigidBody, ConvexHullCollider, type RapierRigidBody } from '@react-three/rapier'
 import * as THREE from 'three'
 import { DUEL } from './duelConstants'
-import { useDuelStore, handPosFor, type DuelSide } from './duelStore'
+import { useDuelStore, handPosFor, type DuelSide, type ChipParams } from './duelStore'
 import { registerChip, unregisterChip, getChip } from './chipRegistry'
-import { makeChipGeometry, makeChipHullPoints } from './chipGeometry'
+import { makeChipGeometry, makeChipHullPoints, chipHeight } from './chipGeometry'
 
 interface DuelChipProps {
   chipId: string
@@ -16,23 +16,23 @@ interface DuelChipProps {
 const UP = new THREE.Vector3(0, 1, 0)
 const PARKED_Y = 50
 
-// One shared lens geometry + hull for all chips.
-let sharedGeo: THREE.BufferGeometry | null = null
-let sharedHull: Float32Array | null = null
-function chipGeo() {
-  if (!sharedGeo) sharedGeo = makeChipGeometry()
-  return sharedGeo
-}
-function chipHull() {
-  if (!sharedHull) sharedHull = makeChipHullPoints()
-  return sharedHull
+/** How much of an incoming gust this chip's shape catches (0.15..~1.2). */
+function gustExposure(params: ChipParams): number {
+  return Math.max(
+    DUEL.minExposure,
+    1 -
+      DUEL.camberExposureShield * params.camber +
+      DUEL.thicknessExposureLip * (params.thickness - 1)
+  )
 }
 
 function pileSlot(side: DuelSide, rank: number): [number, number, number] {
   const sign = side === 'player' ? 1 : -1
+  // Generous slot spacing — chip heights vary by type (kinematic bodies
+  // don't resolve overlaps, so leave room for the tallest).
   return [
     DUEL.pilePos[0] * sign,
-    DUEL.chipThickness / 2 + rank * (DUEL.chipThickness + 0.004),
+    DUEL.chipThickness + rank * DUEL.chipThickness * 2.2,
     DUEL.pilePos[1] * sign,
   ]
 }
@@ -63,6 +63,9 @@ export function DuelChip({ chipId, side, index }: DuelChipProps) {
   })
   const isNextToThrow = stackRank === 0
   const isActive = useDuelStore((s) => s.activeChipId === chipId)
+  const params = useDuelStore(
+    (s) => s.chips.find((c) => c.id === chipId)?.params
+  ) as ChipParams
   // Subscribe to my side's stance so the in-hand chip follows it live.
   const myStance = useDuelStore((s) =>
     side === 'player' ? s.playerStance : s.aiStance
@@ -152,11 +155,16 @@ export function DuelChip({ chipId, side, index }: DuelChipProps) {
     const rot = body.rotation()
     const q = new THREE.Quaternion(rot.x, rot.y, rot.z, rot.w)
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(q)
-    const flatness = Math.abs(up.y)
+    // A domed chip cannot land flat — its gust output suffers.
+    const flatness =
+      Math.abs(up.y) * (1 - DUEL.camberFlatnessPenalty * params.camber)
 
     const pos = body.translation()
+    // Heavier chips carry more momentum into the slap → bigger gust.
     const strength =
-      flatness < DUEL.gustMinFlatness ? 0 : impactSpeed * flatness * flatness
+      flatness < DUEL.gustMinFlatness
+        ? 0
+        : impactSpeed * flatness * flatness * params.weight
 
     if (import.meta.env.DEV)
       console.debug('[gust] fired:', { impactSpeed, flatness, strength })
@@ -181,7 +189,11 @@ export function DuelChip({ chipId, side, index }: DuelChipProps) {
       if (opos.y > DUEL.chipRadius) continue
 
       const falloff = 1 - dist / DUEL.gustRadius
-      const p = Math.min(1, (strength / DUEL.gustRefSpeed) * falloff)
+      // Target shape decides how much of the blast its rim catches.
+      const p = Math.min(
+        1.2,
+        (strength / DUEL.gustRefSpeed) * falloff * gustExposure(c.params)
+      )
       if (p < 0.03) continue
       const rx = dx / dist
       const rz = dz / dist
@@ -197,7 +209,12 @@ export function DuelChip({ chipId, side, index }: DuelChipProps) {
         { x: opos.x, y: opos.y + DUEL.gustPreLift, z: opos.z },
         true
       )
-      const J = DUEL.gustEdgeImpulseBase + DUEL.gustEdgeImpulseScale * p
+      // Saturate at the target's somersault boundary (scaled by its weight):
+      // past "decisive flip" extra power does nothing — monotone outcomes.
+      const J = Math.min(
+        DUEL.gustEdgeImpulseBase + DUEL.gustEdgeImpulseScale * p,
+        DUEL.gustJSomersault * c.params.weight
+      )
       const nearEdge = {
         x: opos.x - rx * DUEL.chipRadius,
         y: opos.y,
@@ -261,12 +278,27 @@ export function DuelChip({ chipId, side, index }: DuelChipProps) {
       return
     }
 
+    // Once a field chip passes its tipping point it should lie DOWN, not
+    // keep rolling on its rim like a wheel (a lens rolls freely — without
+    // this the final face is spin parity, i.e. a coin toss).
+    if (status === 'field' && !isActive) {
+      const rot0 = body.rotation()
+      const upY0 = 1 - 2 * (rot0.x * rot0.x + rot0.z * rot0.z)
+      if (upY0 < -0.3) {
+        const av = body.angvel()
+        if (Math.hypot(av.x, av.y, av.z) > 1.5) {
+          body.setAngvel({ x: av.x * 0.8, y: av.y * 0.8, z: av.z * 0.8 }, true)
+        }
+      }
+    }
+
     if (phase === 'flight' && status === 'field' && !isActive) {
-      // Wobble slow-mo when teetering near the tipping point.
       const rot = body.rotation()
       quatRef.current.set(rot.x, rot.y, rot.z, rot.w)
       upRef.current.copy(UP).applyQuaternion(quatRef.current)
       const upY = upRef.current.y
+
+      // Wobble slow-mo when teetering near the tipping point.
       const tilted = upY > 0 && upY < DUEL.wobbleEnter
       const budgetLeft = slowmoTimeRef.current < DUEL.slowmoMaxSec
       if (tilted && budgetLeft && store.slam !== null) {
@@ -287,12 +319,23 @@ export function DuelChip({ chipId, side, index }: DuelChipProps) {
   })
 
   const isPlayer = side === 'player'
-  const topColor = isPlayer ? '#e8b23a' : '#4a90d9'
+  // Type-tinted side colors: White-Out chips pale (crusted), Warped scorched.
+  const baseTop = isPlayer ? '#e8b23a' : '#4a90d9'
+  const topColor =
+    params.label === 'White-Out'
+      ? isPlayer
+        ? '#f2d58a'
+        : '#9cc3ea'
+      : params.label === 'Warped'
+      ? isPlayer
+        ? '#c98436'
+        : '#3a6f9e'
+      : baseTop
   const bottomColor = isPlayer ? '#8a5a10' : '#142a42'
   const hidden = status === 'captured' || status === 'lost'
 
-  const geometry = useMemo(() => chipGeo(), [])
-  const hullPoints = useMemo(() => chipHull(), [])
+  const geometry = useMemo(() => makeChipGeometry(params), [params])
+  const hullPoints = useMemo(() => makeChipHullPoints(params), [params])
 
   return (
     <RigidBody
@@ -300,11 +343,11 @@ export function DuelChip({ chipId, side, index }: DuelChipProps) {
       type={status === 'field' ? 'dynamic' : 'kinematicPosition'}
       colliders={false}
       position={index === 0 ? antePos(side) : pileSlot(side, index - 1)}
-      mass={DUEL.chipMass}
+      mass={DUEL.chipMass * params.weight}
       restitution={DUEL.chipRestitution}
       friction={DUEL.chipFriction}
       linearDamping={0.5}
-      angularDamping={0.35}
+      angularDamping={0.25}
       ccd
     >
       <ConvexHullCollider args={[hullPoints]} />
@@ -313,7 +356,7 @@ export function DuelChip({ chipId, side, index }: DuelChipProps) {
           <meshStandardMaterial color={topColor} flatShading roughness={0.6} />
         </mesh>
         {/* Thin bottom disc in the owner's dark color so face-down reads instantly */}
-        <mesh position-y={-DUEL.chipThickness / 2 + 0.002} rotation-x={Math.PI / 2}>
+        <mesh position-y={-chipHeight(params) / 2 + 0.002} rotation-x={Math.PI / 2}>
           <circleGeometry args={[DUEL.chipRadius * 0.985, DUEL.chipSegments]} />
           <meshStandardMaterial color={bottomColor} flatShading roughness={0.6} side={THREE.BackSide} />
         </mesh>

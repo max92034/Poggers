@@ -30,6 +30,9 @@ export function DuelScreen() {
 
   const stackOf = (side: 'player' | 'ai') =>
     chips.filter((c) => c.side === side && c.status === 'stack').length
+  const nextChipLabel =
+    chips.find((c) => c.side === 'player' && c.status === 'stack')?.params
+      .label ?? '—'
 
   // Rival takes its turn after a "thinking" delay
   useEffect(() => {
@@ -72,8 +75,8 @@ export function DuelScreen() {
       ? '...'
       : currentTurn === 'player'
       ? lockedAim
-        ? 'Target locked — flick forward to slam! (tap again to re-aim)'
-        : 'YOUR TURN — move with A/D, tap the ground to set your target'
+        ? `Target locked — flick forward to slam the ${nextChipLabel}!`
+        : `YOUR TURN — throwing: ${nextChipLabel}. Move with A/D, tap to set your target`
       : 'RIVAL IS LINING UP...'
 
   const reasonText = (() => {

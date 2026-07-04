@@ -13,11 +13,29 @@ export type DuelPhase =
 
 export type WinReason = 'captures' | 'wipeout' | 'draw'
 
+export interface ChipParams {
+  label: string
+  weight: number    // mass multiplier — heavier flips less, slams harder
+  camber: number    // 0..1 dome-ness — sheds gusts, but can't land flat
+  thickness: number // height multiplier — taller rim = catchable lip
+}
+
+export const CHIP_TYPES: Record<string, ChipParams> = {
+  standard: { label: 'Standard', weight: 1, camber: 0, thickness: 1 },
+  // 立可白: correction-fluid layers — heavy AND thick. Hard to flip by
+  // mass, but the built-up rim is a lip the gust can catch.
+  whiteout: { label: 'White-Out', weight: 1.5, camber: 0, thickness: 1.5 },
+  // Lighter-warped: high camber sheds gusts, but its own slams land
+  // domed → weaker gust output.
+  warped: { label: 'Warped', weight: 1, camber: 0.75, thickness: 1 },
+}
+
 export interface ChipState {
   id: string
   side: DuelSide
   index: number // 0..stackSize-1; 0 is the ante chip
   status: ChipStatus
+  params: ChipParams
 }
 
 export interface ThrowParams {
@@ -37,6 +55,10 @@ export interface SlamEvent {
   strength: number
 }
 
+// Starter roster per side: ante + one plain thrower, then the two chips
+// born from real playground mods.
+const ROSTER = ['standard', 'standard', 'whiteout', 'warped'] as const
+
 function makeChips(): ChipState[] {
   const chips: ChipState[] = []
   for (const side of ['player', 'ai'] as DuelSide[]) {
@@ -46,6 +68,7 @@ function makeChips(): ChipState[] {
         side,
         index: i,
         status: i === 0 ? 'field' : 'stack', // chip 0 = ante, already in the ring
+        params: CHIP_TYPES[ROSTER[i % ROSTER.length]],
       })
     }
   }
