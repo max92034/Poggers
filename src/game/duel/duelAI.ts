@@ -2,6 +2,7 @@ import { DUEL } from './duelConstants'
 import { getChip } from './chipRegistry'
 import { useDuelStore } from './duelStore'
 import { speedForRange } from './ballistics'
+import { STORY_RIVALS } from './story'
 
 /**
  * The rival's throw brain: pick the closest live player chip, aim to land
@@ -17,6 +18,11 @@ export function computeAiThrow(): {
   stance: number
 } {
   const s = useDuelStore.getState()
+  // Story rivals have their own skill profile; free-play uses defaults.
+  const rival = s.storyMode ? STORY_RIVALS[s.rivalIndex] : undefined
+  const aimNoise = rival?.skill.aimNoise ?? DUEL.aiAimNoise
+  const speedNoise = rival?.skill.speedNoise ?? DUEL.aiSpeedNoise
+  const minStraightness = rival?.skill.minStraightness ?? DUEL.aiMinStraightness
   const targets = s.chips.filter((c) => c.side === 'player' && c.status === 'field')
 
   // Nearest live player chip (distance from the AI's edge center).
@@ -43,8 +49,8 @@ export function computeAiThrow(): {
     const tr = Math.hypot(bestPos.x, bestPos.z) || 1
     const outX = bestPos.x / tr
     const outZ = bestPos.z / tr
-    aimX = bestPos.x - outX * 1.0 + gauss() * DUEL.aiAimNoise
-    aimZ = bestPos.z - outZ * 1.0 + gauss() * DUEL.aiAimNoise
+    aimX = bestPos.x - outX * 1.0 + gauss() * aimNoise
+    aimZ = bestPos.z - outZ * 1.0 + gauss() * aimNoise
     // Stance: stand where the hand→aim line continues into the target,
     // i.e. on the arc behind the aim point as seen from the target.
     const backX = aimX - outX * 2.0
@@ -67,9 +73,8 @@ export function computeAiThrow(): {
   return {
     aimX,
     aimZ,
-    speed: required * (1 + gauss() * DUEL.aiSpeedNoise),
-    straightness:
-      DUEL.aiMinStraightness + Math.random() * (1 - DUEL.aiMinStraightness),
+    speed: required * (1 + gauss() * speedNoise),
+    straightness: minStraightness + Math.random() * (1 - minStraightness),
     stance,
   }
 }

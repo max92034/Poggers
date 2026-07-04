@@ -66,6 +66,23 @@
   text-shadow: 0 1px 4px rgba(10, 12, 18, 0.7);
 }
 
+.duel-title__intro {
+  max-width: 560px;
+  font-size: 12px;
+  font-style: italic;
+  color: #c8cede;
+  text-shadow: 0 1px 3px rgba(10, 12, 18, 0.9);
+  margin: 6px auto 0;
+}
+
+.duel-gameover__rivalline {
+  max-width: 560px;
+  font-size: 14px;
+  font-style: italic;
+  color: #e8dfc9;
+  margin: 0 0 6px;
+}
+
 .duel-hud--stats {
   bottom: 24px;
   left: 50%;

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { DUEL, VENUES, type VenueId } from './duelConstants'
+import { STORY_RIVALS, type Rival } from './story'
 import { getChip } from './chipRegistry'
 import { speedForRange } from './ballistics'
 
@@ -13,22 +14,9 @@ export type DuelPhase =
 
 export type WinReason = 'captures' | 'wipeout' | 'draw'
 
-export interface ChipParams {
-  label: string
-  weight: number    // mass multiplier — heavier flips less, slams harder
-  camber: number    // 0..1 dome-ness — sheds gusts, but can't land flat
-  thickness: number // height multiplier — taller rim = catchable lip
-}
-
-export const CHIP_TYPES: Record<string, ChipParams> = {
-  standard: { label: 'Standard', weight: 1, camber: 0, thickness: 1 },
-  // 立可白: correction-fluid layers — heavy AND thick. Hard to flip by
-  // mass, but the built-up rim is a lip the gust can catch.
-  whiteout: { label: 'White-Out', weight: 1.5, camber: 0, thickness: 1.5 },
-  // Lighter-warped: high camber sheds gusts, but its own slams land
-  // domed → weaker gust output.
-  warped: { label: 'Warped', weight: 1, camber: 0.75, thickness: 1 },
-}
+import { CHIP_TYPES, type ChipParams } from './chipTypes'
+export { CHIP_TYPES }
+export type { ChipParams }
 
 export interface ChipState {
   id: string
@@ -80,7 +68,11 @@ function starterCollection(): OwnedChip[] {
 /** Build the duel lineup: player side from the collection's first chips,
  * rival side a fresh roster (an endless supply of duelists). In the
  * underground den the rival brings modded chips — no weigh-in there. */
-function buildChips(collection: OwnedChip[], venue: VenueId): ChipState[] {
+function buildChips(
+  collection: OwnedChip[],
+  venue: VenueId,
+  rival: Rival | null
+): ChipState[] {
   const chips: ChipState[] = []
   collection.slice(0, DUEL.stackSize).forEach((owned, i) => {
     chips.push({
@@ -94,8 +86,12 @@ function buildChips(collection: OwnedChip[], venue: VenueId): ChipState[] {
   })
   const rivalMods = VENUES[venue].rivalMods
   for (let i = 0; i < DUEL.stackSize; i++) {
-    const base = { ...CHIP_TYPES[ROSTER[i % ROSTER.length]] }
-    if (rivalMods && Math.random() < 0.6) {
+    // Story rivals bring their themed roster; free-play rivals draw the
+    // starter roster (street-modded in the den).
+    const base = rival
+      ? { ...rival.roster[i % rival.roster.length] }
+      : { ...CHIP_TYPES[ROSTER[i % ROSTER.length]] }
+    if (!rival && rivalMods && Math.random() < 0.6) {
       // Street mods: burned or painted, sometimes twice.
       const n = Math.random() < 0.3 ? 2 : 1
       for (let k = 0; k < n; k++) {
@@ -160,6 +156,11 @@ interface DuelState {
   freshPack: boolean // collection was emptied and restocked
   venue: VenueId
 
+  // Story ladder
+  storyMode: boolean
+  rivalIndex: number
+  storyCleared: boolean
+
   // Juice
   slam: SlamEvent | null
   hitstop: boolean
@@ -182,6 +183,9 @@ interface DuelState {
   nextDuel: (venue?: VenueId) => void
   modChip: (uid: number, mod: 'burn' | 'paint') => void
   moveChipUp: (uid: number) => void
+  startStory: () => void
+  startFreePlay: () => void
+  advanceRival: () => void
   recordSlam: (x: number, z: number, strength: number) => void
   setTimeScale: (scale: number, wobbleChipId?: string | null) => void
 }
@@ -230,11 +234,14 @@ const initialCollection = starterCollection()
 export const useDuelStore = create<DuelState>((set, get) => ({
   phase: 'ready',
   currentTurn: 'player',
-  chips: buildChips(initialCollection, 'official'),
+  chips: buildChips(initialCollection, 'official', null),
   collection: initialCollection,
   supplies: { lighter: 2, paint: 2 },
   freshPack: false,
   venue: 'official',
+  storyMode: false,
+  rivalIndex: 0,
+  storyCleared: false,
   activeChipId: null,
   throwId: 0,
   resetId: 0,
@@ -438,11 +445,12 @@ export const useDuelStore = create<DuelState>((set, get) => ({
   nextDuel: (venue) => {
     if (hitstopTimer) clearTimeout(hitstopTimer)
     set((s) => {
-      const v = venue ?? s.venue
+      const rival = s.storyMode ? STORY_RIVALS[s.rivalIndex] ?? null : null
+      const v = venue ?? (rival ? rival.venue : s.venue)
       // Cleaned out? A fresh pack from the corner store.
       const restock = s.collection.length === 0
       const collection = restock ? starterCollection() : s.collection
-      const chips = buildChips(collection, v)
+      const chips = buildChips(collection, v, rival)
       const playerHasStack = chips.some(
         (c) => c.side === 'player' && c.status === 'stack'
       )
@@ -513,6 +521,29 @@ export const useDuelStore = create<DuelState>((set, get) => ({
     const collection = [...s.collection]
     ;[collection[i - 1], collection[i]] = [collection[i], collection[i - 1]]
     set({ collection })
+  },
+
+  startStory: () => {
+    set({ storyMode: true, rivalIndex: 0, storyCleared: false })
+    get().nextDuel()
+  },
+
+  startFreePlay: () => {
+    set({ storyMode: false, storyCleared: false })
+    get().nextDuel('official')
+  },
+
+  advanceRival: () => {
+    const s = get()
+    if (!s.storyMode) return
+    const next = s.rivalIndex + 1
+    if (next >= STORY_RIVALS.length) {
+      set({ storyMode: false, storyCleared: true })
+      get().nextDuel('official')
+      return
+    }
+    set({ rivalIndex: next })
+    get().nextDuel()
   },
 
   recordSlam: (x, z, strength) => {

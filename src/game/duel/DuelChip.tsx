@@ -368,6 +368,18 @@ export function DuelChip({ chipId, side, index }: DuelChipProps) {
           <circleGeometry args={[DUEL.chipRadius * 0.985, DUEL.chipSegments]} />
           <meshStandardMaterial color={bottomColor} flatShading roughness={0.6} side={THREE.BackSide} />
         </mesh>
+        {/* Universal arbitration seal on every bottom — an ✕ in dusty cream.
+            Face-down reads instantly at any distance, any owner. */}
+        <group position-y={-chipHeight(params) / 2 - 0.0015} rotation-x={Math.PI / 2}>
+          <mesh rotation-z={Math.PI / 4}>
+            <planeGeometry args={[DUEL.chipRadius * 1.3, DUEL.chipRadius * 0.22]} />
+            <meshBasicMaterial color="#e8dfc9" side={THREE.DoubleSide} />
+          </mesh>
+          <mesh rotation-z={-Math.PI / 4}>
+            <planeGeometry args={[DUEL.chipRadius * 1.3, DUEL.chipRadius * 0.22]} />
+            <meshBasicMaterial color="#e8dfc9" side={THREE.DoubleSide} />
+          </mesh>
+        </group>
       </group>
     </RigidBody>
   )

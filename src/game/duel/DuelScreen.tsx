@@ -4,6 +4,7 @@ import { useGameStore } from '../store/gameStore'
 import { useDuelStore } from './duelStore'
 import { DUEL, VENUES, landingGrade } from './duelConstants'
 import { computeAiThrow } from './duelAI'
+import { STORY_RIVALS } from './story'
 import { playSlam } from './slamSound'
 import { DuelScene } from './DuelScene'
 import { FlickInput } from './FlickInput'
@@ -28,6 +29,11 @@ export function DuelScreen() {
   const collection = useDuelStore((s) => s.collection)
   const supplies = useDuelStore((s) => s.supplies)
   const venueDef = VENUES[useDuelStore((s) => s.venue)]
+  const storyMode = useDuelStore((s) => s.storyMode)
+  const rivalIndex = useDuelStore((s) => s.rivalIndex)
+  const storyCleared = useDuelStore((s) => s.storyCleared)
+  const advanceRival = useDuelStore((s) => s.advanceRival)
+  const rival = storyMode ? STORY_RIVALS[rivalIndex] : null
   const modChip = useDuelStore((s) => s.modChip)
   const moveChipUp = useDuelStore((s) => s.moveChipUp)
   const aiThrow = useDuelStore((s) => s.aiThrow)
@@ -116,8 +122,15 @@ export function DuelScreen() {
           <ArrowLeft size={16} /> Menu
         </button>
         <div className="duel-title">
-          <h1 style={{ color: venueDef.hudAccent }}>{venueDef.name}</h1>
+          <h1 style={{ color: venueDef.hudAccent }}>
+            {rival ? `VS ${rival.name.toUpperCase()} — ${venueDef.name}` : venueDef.name}
+          </h1>
           <p>{turnLabel}</p>
+          {rival && !lastThrow && phase === 'ready' && (
+            <p className="duel-title__intro">
+              {rival.name}, {rival.title}: “{rival.intro}”
+            </p>
+          )}
         </div>
         <div className="duel-tally">
           <span className="duel-tally__you">
@@ -178,6 +191,17 @@ export function DuelScreen() {
             {turnLabel}
           </h2>
           <p className="duel-gameover__reason">{reasonText}</p>
+          {rival && (
+            <p className="duel-gameover__rivalline">
+              {rival.name}: “{winner === 'player' ? rival.loseLine : rival.winLine}”
+            </p>
+          )}
+          {storyCleared && (
+            <p className="duel-gameover__rivalline">
+              LADDER CLEAR — the district has no one left to send. (More
+              rivals coming.)
+            </p>
+          )}
 
           <div className="duel-bench">
             <div className="duel-bench__head">
@@ -228,21 +252,38 @@ export function DuelScreen() {
             ))}
           </div>
 
-          <div className="duel-gameover__venues">
-            <button className="btn duel-gameover__btn" onClick={() => nextDuel('official')}>
-              <RotateCcw size={16} /> Official Arena
-            </button>
-            <button
-              className="btn duel-gameover__btn duel-gameover__btn--under"
-              onClick={() => nextDuel('underground')}
-            >
-              <RotateCcw size={16} /> Underground Den
-            </button>
-          </div>
-          <p className="duel-gameover__venuehint">
-            Official: weigh-in enforced, rivals play clean. Underground: no
-            rules — rivals bring modded chips.
-          </p>
+          {storyMode ? (
+            <div className="duel-gameover__venues">
+              {winner === 'player' ? (
+                <button className="btn duel-gameover__btn" onClick={advanceRival}>
+                  <RotateCcw size={16} />
+                  {rivalIndex + 1 >= STORY_RIVALS.length ? 'Finish the Ladder' : 'Next Rival'}
+                </button>
+              ) : (
+                <button className="btn duel-gameover__btn" onClick={() => nextDuel()}>
+                  <RotateCcw size={16} /> Rematch (R)
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="duel-gameover__venues">
+                <button className="btn duel-gameover__btn" onClick={() => nextDuel('official')}>
+                  <RotateCcw size={16} /> Official Arena
+                </button>
+                <button
+                  className="btn duel-gameover__btn duel-gameover__btn--under"
+                  onClick={() => nextDuel('underground')}
+                >
+                  <RotateCcw size={16} /> Underground Den
+                </button>
+              </div>
+              <p className="duel-gameover__venuehint">
+                Official: weigh-in enforced, rivals play clean. Underground: no
+                rules — rivals bring modded chips.
+              </p>
+            </>
+          )}
         </div>
       )}
     </div>

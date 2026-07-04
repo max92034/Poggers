@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useGameStore } from '../game/store/gameStore'
+import { useDuelStore } from '../game/duel/duelStore'
 import { Info, Play, Zap } from 'lucide-react'
 import './MainMenu.css'
 
@@ -18,11 +19,29 @@ export function MainMenu() {
         <h1 className="main-menu__title">Poggers</h1>
         <p className="main-menu__subtitle">Neo-Arcade Combat Arena</p>
 
-        <button className="btn main-menu__btn" onClick={goToSelect}>
-          <Play size={18} /> Enter Arena
+        <button
+          className="btn main-menu__btn"
+          onClick={() => {
+            useDuelStore.getState().startStory()
+            goToDuel()
+          }}
+        >
+          <Play size={18} /> Story Mode
         </button>
-        <button className="btn main-menu__btn" onClick={goToDuel}>
-          <Zap size={18} /> Duel Prototype
+        <button
+          className="btn main-menu__btn"
+          onClick={() => {
+            useDuelStore.getState().startFreePlay()
+            goToDuel()
+          }}
+        >
+          <Zap size={18} /> Free Duel
+        </button>
+        <button
+          className="btn-secondary main-menu__btn main-menu__btn--secondary"
+          onClick={goToSelect}
+        >
+          <Play size={18} /> Legacy Arena
         </button>
         <button
           className="btn-secondary main-menu__btn main-menu__btn--secondary"
