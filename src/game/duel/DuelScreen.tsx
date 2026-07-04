@@ -47,12 +47,12 @@ export function DuelScreen() {
     chips.find((c) => c.side === 'player' && c.status === 'stack')?.params
       .label ?? '—'
 
-  // Rival takes its turn after a "thinking" delay
+  // Rival takes its turn after a "thinking" delay (never mid-dialogue)
   useEffect(() => {
-    if (phase !== 'ai_think') return
+    if (phase !== 'ai_think' || dialogue) return
     const timer = setTimeout(() => aiThrow(computeAiThrow()), DUEL.aiThinkMs)
     return () => clearTimeout(timer)
-  }, [phase, aiThrow])
+  }, [phase, aiThrow, dialogue])
 
   // Slam clack (synth placeholder)
   useEffect(() => {
@@ -209,9 +209,11 @@ export function DuelScreen() {
                 🔥 lighter ×{supplies.lighter} · ⬜ white-out ×{supplies.paint}
               </span>
             </div>
-            {collection.length === 0 && (
+            {collection.length < 2 && (
               <p className="duel-bench__empty">
-                Cleaned out! A fresh pack awaits at the next duel.
+                {collection.length === 0
+                  ? 'Cleaned out! A fresh pack awaits at the next duel.'
+                  : 'Down to your last chip — you need one to ante AND one to throw. The corner store will front you a fresh pack next duel.'}
               </p>
             )}
             {collection.map((o, i) => (

@@ -470,8 +470,9 @@ export const useDuelStore = create<DuelState>((set, get) => ({
       const v = venue ?? (rival ? rival.venue : s.venue)
       // Play the rival's intro exchange once (not again on rematch).
       const showIntro = rival !== null && s.introShownFor !== s.rivalIndex
-      // Cleaned out? A fresh pack from the corner store.
-      const restock = s.collection.length === 0
+      // Cleaned out — or down to a single chip (you can't both ante and
+      // throw with one)? The corner store fronts you a fresh pack.
+      const restock = s.collection.length < 2
       const collection = restock ? starterCollection() : s.collection
       const chips = buildChips(collection, v, rival)
       const playerHasStack = chips.some(
