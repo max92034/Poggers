@@ -173,6 +173,7 @@ export const STORY_RIVALS: Rival[] = [
     id: 'shizuka',
     name: 'Shizuka',
     title: 'Council Auditor, 4th Chair',
+    charId: 'shizuka',
     venue: 'official',
     roster: [
       t('whiteout', { weight: 1.75, thickness: 1.5, label: 'White-Out ⬜ ⬜' }),

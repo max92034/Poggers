@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { Suspense, useEffect, useMemo, useRef } from 'react'
+import { useFrame, useLoader } from '@react-three/fiber'
 import { RigidBody, ConvexHullCollider, type RapierRigidBody } from '@react-three/rapier'
 import * as THREE from 'three'
 import { DUEL } from './duelConstants'
@@ -15,6 +15,21 @@ interface DuelChipProps {
 
 const UP = new THREE.Vector3(0, 1, 0)
 const PARKED_Y = 50
+
+/** Collectible face art printed on the dome (chipface-01..08). */
+function ChipFace({ file, y, radius }: { file: string; y: number; radius: number }) {
+  const tex = useLoader(
+    THREE.TextureLoader,
+    `${import.meta.env.BASE_URL}art/${file}`
+  )
+  tex.colorSpace = THREE.SRGBColorSpace
+  return (
+    <mesh position-y={y} rotation-x={-Math.PI / 2}>
+      <circleGeometry args={[radius, DUEL.chipSegments]} />
+      <meshStandardMaterial map={tex} roughness={0.55} />
+    </mesh>
+  )
+}
 
 /** How much of an incoming gust this chip's shape catches (0.15..~1.2). */
 function gustExposure(params: ChipParams): number {
@@ -66,6 +81,9 @@ export function DuelChip({ chipId, side, index }: DuelChipProps) {
   // May be briefly undefined while a smaller lineup replaces the chips
   // array and this component is about to unmount.
   const params = useDuelStore((s) => s.chips.find((c) => c.id === chipId)?.params)
+  const uid = useDuelStore((s) => s.chips.find((c) => c.id === chipId)?.uid ?? -1)
+  // Face art: stable per owned chip; rival chips vary by lineup slot.
+  const faceIndex = uid > 0 ? (uid - 1) % 8 : (index * 2 + 3) % 8
   // Subscribe to my side's stance so the in-hand chip follows it live.
   const myStance = useDuelStore((s) =>
     side === 'player' ? s.playerStance : s.aiStance
@@ -368,6 +386,14 @@ export function DuelChip({ chipId, side, index }: DuelChipProps) {
           <circleGeometry args={[DUEL.chipRadius * 0.985, DUEL.chipSegments]} />
           <meshStandardMaterial color={bottomColor} flatShading roughness={0.6} side={THREE.BackSide} />
         </mesh>
+        {/* Collectible print on the face — stable per owned chip (uid) */}
+        <Suspense fallback={null}>
+          <ChipFace
+            file={`chipface-0${faceIndex + 1}.png`}
+            y={chipHeight(params) / 2 + 0.002}
+            radius={DUEL.chipRadius * 0.52}
+          />
+        </Suspense>
         {/* Universal arbitration seal on every bottom — an ✕ in dusty cream.
             Face-down reads instantly at any distance, any owner. */}
         <group position-y={-chipHeight(params) / 2 - 0.0015} rotation-x={Math.PI / 2}>
