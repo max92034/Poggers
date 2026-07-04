@@ -36,6 +36,7 @@ export interface ChipState {
   index: number // 0..stackSize-1; 0 is the ante chip
   status: ChipStatus
   params: ChipParams
+  uid: number // owning OwnedChip uid (player side), -1 for rival chips
 }
 
 export interface ThrowParams {
@@ -55,22 +56,50 @@ export interface SlamEvent {
   strength: number
 }
 
-// Starter roster per side: ante + one plain thrower, then the two chips
-// born from real playground mods.
+// Starter roster: ante + one plain thrower, then the two chips born from
+// real playground mods.
 const ROSTER = ['standard', 'standard', 'whiteout', 'warped'] as const
 
-function makeChips(): ChipState[] {
+/** A chip you own — persists across duels until captured or lost. */
+export interface OwnedChip {
+  uid: number
+  params: ChipParams
+  taken: boolean // won off the rival (bragging rights)
+}
+
+let uidCounter = 1
+
+function starterCollection(): OwnedChip[] {
+  return ROSTER.map((t) => ({
+    uid: uidCounter++,
+    params: { ...CHIP_TYPES[t] },
+    taken: false,
+  }))
+}
+
+/** Build the duel lineup: player side from the collection's first chips,
+ * rival side a fresh roster (an endless supply of neighborhood kids). */
+function buildChips(collection: OwnedChip[]): ChipState[] {
   const chips: ChipState[] = []
-  for (const side of ['player', 'ai'] as DuelSide[]) {
-    for (let i = 0; i < DUEL.stackSize; i++) {
-      chips.push({
-        id: `${side}-${i}`,
-        side,
-        index: i,
-        status: i === 0 ? 'field' : 'stack', // chip 0 = ante, already in the ring
-        params: CHIP_TYPES[ROSTER[i % ROSTER.length]],
-      })
-    }
+  collection.slice(0, DUEL.stackSize).forEach((owned, i) => {
+    chips.push({
+      id: `player-${i}`,
+      side: 'player',
+      index: i,
+      status: i === 0 ? 'field' : 'stack',
+      params: owned.params,
+      uid: owned.uid,
+    })
+  })
+  for (let i = 0; i < DUEL.stackSize; i++) {
+    chips.push({
+      id: `ai-${i}`,
+      side: 'ai',
+      index: i,
+      status: i === 0 ? 'field' : 'stack',
+      params: { ...CHIP_TYPES[ROSTER[i % ROSTER.length]] },
+      uid: -1,
+    })
   }
   return chips
 }
@@ -108,6 +137,11 @@ interface DuelState {
   playerChipsWon: number // session tally
   aiChipsWon: number
 
+  // Keepsies collection (persists across duels this session)
+  collection: OwnedChip[]
+  supplies: { lighter: number; paint: number }
+  freshPack: boolean // collection was emptied and restocked
+
   // Juice
   slam: SlamEvent | null
   hitstop: boolean
@@ -128,6 +162,8 @@ interface DuelState {
   }) => void
   resolveOutcome: () => void
   nextDuel: () => void
+  modChip: (uid: number, mod: 'burn' | 'paint') => void
+  moveChipUp: (uid: number) => void
   recordSlam: (x: number, z: number, strength: number) => void
   setTimeScale: (scale: number, wobbleChipId?: string | null) => void
 }
@@ -171,10 +207,15 @@ function buildThrow(
   }
 }
 
+const initialCollection = starterCollection()
+
 export const useDuelStore = create<DuelState>((set, get) => ({
   phase: 'ready',
   currentTurn: 'player',
-  chips: makeChips(),
+  chips: buildChips(initialCollection),
+  collection: initialCollection,
+  supplies: { lighter: 2, paint: 2 },
+  freshPack: false,
   activeChipId: null,
   throwId: 0,
   resetId: 0,
@@ -312,6 +353,31 @@ export const useDuelStore = create<DuelState>((set, get) => ({
           : reason === 'wipeout' && alive('ai') === 0 && alive('player') > 0
           ? 'player'
           : byCaptures
+
+      // Keepsies: settle the collection. Player chips captured/lost are
+      // gone; rival chips the player flipped join the collection for real.
+      const gone = new Set(
+        chips
+          .filter(
+            (c) =>
+              c.side === 'player' &&
+              (c.status === 'captured' || c.status === 'lost')
+          )
+          .map((c) => c.uid)
+      )
+      const spoils: OwnedChip[] = chips
+        .filter((c) => c.side === 'ai' && c.status === 'captured')
+        .map((c) => ({ uid: uidCounter++, params: { ...c.params }, taken: true }))
+      const collection = [
+        ...s.collection.filter((o) => !gone.has(o.uid)),
+        ...spoils,
+      ]
+      // Winning the duel restocks the mod supplies a little.
+      const supplies =
+        winner === 'player'
+          ? { lighter: s.supplies.lighter + 1, paint: s.supplies.paint + 1 }
+          : s.supplies
+
       set({
         phase: 'gameover',
         chips,
@@ -324,6 +390,8 @@ export const useDuelStore = create<DuelState>((set, get) => ({
         wobbleChipId: null,
         playerChipsWon: s.playerChipsWon + playerCaptured,
         aiChipsWon: s.aiChipsWon + aiCaptured,
+        collection,
+        supplies,
       })
     }
 
@@ -350,27 +418,80 @@ export const useDuelStore = create<DuelState>((set, get) => ({
 
   nextDuel: () => {
     if (hitstopTimer) clearTimeout(hitstopTimer)
-    set((s) => ({
-      phase: 'ready',
-      currentTurn: 'player',
-      chips: makeChips(),
-      activeChipId: null,
-      resetId: s.resetId + 1,
-      lastThrow: null,
-      pointerNdc: null,
-      aimPoint: null,
-      lockedAim: null,
-      playerStance: 0,
-      aiStance: 0,
-      winner: null,
-      winReason: null,
-      playerCaptured: 0,
-      aiCaptured: 0,
-      slam: null,
-      hitstop: false,
-      timeScale: 1,
-      wobbleChipId: null,
-    }))
+    set((s) => {
+      // Cleaned out? A fresh pack from the corner store.
+      const restock = s.collection.length === 0
+      const collection = restock ? starterCollection() : s.collection
+      const chips = buildChips(collection)
+      const playerHasStack = chips.some(
+        (c) => c.side === 'player' && c.status === 'stack'
+      )
+      return {
+        collection,
+        freshPack: restock,
+        supplies: restock ? { lighter: 2, paint: 2 } : s.supplies,
+        chips,
+        currentTurn: playerHasStack ? ('player' as DuelSide) : ('ai' as DuelSide),
+        phase: playerHasStack ? ('ready' as DuelPhase) : ('ai_think' as DuelPhase),
+        activeChipId: null,
+        resetId: s.resetId + 1,
+        lastThrow: null,
+        pointerNdc: null,
+        aimPoint: null,
+        lockedAim: null,
+        playerStance: 0,
+        aiStance: 0,
+        winner: null,
+        winReason: null,
+        playerCaptured: 0,
+        aiCaptured: 0,
+        slam: null,
+        hitstop: false,
+        timeScale: 1,
+        wobbleChipId: null,
+      }
+    })
+  },
+
+  modChip: (uid, mod) => {
+    const s = get()
+    if (s.phase !== 'gameover') return
+    const supply = mod === 'burn' ? s.supplies.lighter : s.supplies.paint
+    if (supply <= 0) return
+    let changed = false
+    const collection = s.collection.map((o) => {
+      if (o.uid !== uid) return o
+      const p = { ...o.params }
+      if (mod === 'burn') {
+        if (p.camber >= 1) return o
+        p.camber = Math.min(1, p.camber + 0.25)
+        p.label = p.label + ' 🔥'
+      } else {
+        if (p.weight >= 2) return o
+        p.weight = Math.min(2, p.weight + 0.25)
+        p.thickness = Math.min(2, p.thickness + 0.25)
+        p.label = p.label + ' ⬜'
+      }
+      changed = true
+      return { ...o, params: p }
+    })
+    if (!changed) return
+    set({
+      collection,
+      supplies: {
+        lighter: s.supplies.lighter - (mod === 'burn' ? 1 : 0),
+        paint: s.supplies.paint - (mod === 'paint' ? 1 : 0),
+      },
+    })
+  },
+
+  moveChipUp: (uid) => {
+    const s = get()
+    const i = s.collection.findIndex((o) => o.uid === uid)
+    if (i <= 0) return
+    const collection = [...s.collection]
+    ;[collection[i - 1], collection[i]] = [collection[i], collection[i - 1]]
+    set({ collection })
   },
 
   recordSlam: (x, z, strength) => {

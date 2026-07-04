@@ -25,6 +25,10 @@ export function DuelScreen() {
   const lockedAim = useDuelStore((s) => s.lockedAim)
   const playerStance = useDuelStore((s) => s.playerStance)
   const setPlayerStance = useDuelStore((s) => s.setPlayerStance)
+  const collection = useDuelStore((s) => s.collection)
+  const supplies = useDuelStore((s) => s.supplies)
+  const modChip = useDuelStore((s) => s.modChip)
+  const moveChipUp = useDuelStore((s) => s.moveChipUp)
   const aiThrow = useDuelStore((s) => s.aiThrow)
   const nextDuel = useDuelStore((s) => s.nextDuel)
 
@@ -173,6 +177,56 @@ export function DuelScreen() {
             {turnLabel}
           </h2>
           <p className="duel-gameover__reason">{reasonText}</p>
+
+          <div className="duel-bench">
+            <div className="duel-bench__head">
+              <span>YOUR CHIPS ({collection.length}) — first 4 enter the next duel</span>
+              <span className="duel-bench__supplies">
+                🔥 lighter ×{supplies.lighter} · ⬜ white-out ×{supplies.paint}
+              </span>
+            </div>
+            {collection.length === 0 && (
+              <p className="duel-bench__empty">
+                Cleaned out! A fresh pack awaits at the next duel.
+              </p>
+            )}
+            {collection.map((o, i) => (
+              <div key={o.uid} className="duel-bench__chip">
+                <span className="duel-bench__name">
+                  {i < DUEL.stackSize ? '▸' : ' '} {o.params.label}
+                  {o.taken && ' ★'}
+                </span>
+                <span className="duel-bench__stats">
+                  w{o.params.weight.toFixed(2)} c{o.params.camber.toFixed(2)} t
+                  {o.params.thickness.toFixed(2)}
+                </span>
+                <span className="duel-bench__actions">
+                  <button
+                    disabled={supplies.lighter <= 0 || o.params.camber >= 1}
+                    onClick={() => modChip(o.uid, 'burn')}
+                    title="Burn: +camber — sheds gusts, weaker own slam"
+                  >
+                    🔥
+                  </button>
+                  <button
+                    disabled={supplies.paint <= 0 || o.params.weight >= 2}
+                    onClick={() => modChip(o.uid, 'paint')}
+                    title="Paint: +weight +thickness — harder slams, taller lip"
+                  >
+                    ⬜
+                  </button>
+                  <button
+                    disabled={i === 0}
+                    onClick={() => moveChipUp(o.uid)}
+                    title="Move up in the lineup"
+                  >
+                    ▲
+                  </button>
+                </span>
+              </div>
+            ))}
+          </div>
+
           <button className="btn duel-gameover__btn" onClick={nextDuel}>
             <RotateCcw size={16} /> Next Duel (R)
           </button>

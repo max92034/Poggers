@@ -63,9 +63,9 @@ export function DuelChip({ chipId, side, index }: DuelChipProps) {
   })
   const isNextToThrow = stackRank === 0
   const isActive = useDuelStore((s) => s.activeChipId === chipId)
-  const params = useDuelStore(
-    (s) => s.chips.find((c) => c.id === chipId)?.params
-  ) as ChipParams
+  // May be briefly undefined while a smaller lineup replaces the chips
+  // array and this component is about to unmount.
+  const params = useDuelStore((s) => s.chips.find((c) => c.id === chipId)?.params)
   // Subscribe to my side's stance so the in-hand chip follows it live.
   const myStance = useDuelStore((s) =>
     side === 'player' ? s.playerStance : s.aiStance
@@ -147,7 +147,7 @@ export function DuelChip({ chipId, side, index }: DuelChipProps) {
 
   const fireGust = () => {
     const body = bodyRef.current
-    if (!body || gustFiredRef.current) return
+    if (!body || !params || gustFiredRef.current) return
     gustFiredRef.current = true
 
     const store = useDuelStore.getState()
@@ -322,11 +322,11 @@ export function DuelChip({ chipId, side, index }: DuelChipProps) {
   // Type-tinted side colors: White-Out chips pale (crusted), Warped scorched.
   const baseTop = isPlayer ? '#e8b23a' : '#4a90d9'
   const topColor =
-    params.label === 'White-Out'
+    params?.label === 'White-Out'
       ? isPlayer
         ? '#f2d58a'
         : '#9cc3ea'
-      : params.label === 'Warped'
+      : params?.label === 'Warped'
       ? isPlayer
         ? '#c98436'
         : '#3a6f9e'
@@ -334,8 +334,16 @@ export function DuelChip({ chipId, side, index }: DuelChipProps) {
   const bottomColor = isPlayer ? '#8a5a10' : '#142a42'
   const hidden = status === 'captured' || status === 'lost'
 
-  const geometry = useMemo(() => makeChipGeometry(params), [params])
-  const hullPoints = useMemo(() => makeChipHullPoints(params), [params])
+  const geometry = useMemo(
+    () => (params ? makeChipGeometry(params) : undefined),
+    [params]
+  )
+  const hullPoints = useMemo(
+    () => (params ? makeChipHullPoints(params) : undefined),
+    [params]
+  )
+
+  if (!params || !geometry || !hullPoints) return null
 
   return (
     <RigidBody

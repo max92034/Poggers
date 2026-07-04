@@ -179,3 +179,75 @@
   align-items: center;
   gap: 8px;
 }
+
+.duel-bench {
+  width: min(560px, 90vw);
+  max-height: 44vh;
+  overflow-y: auto;
+  background: rgba(16, 20, 30, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+}
+
+.duel-bench__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #8890a5;
+  margin-bottom: 8px;
+}
+
+.duel-bench__empty {
+  color: #c8cede;
+  font-size: 14px;
+  margin: 8px 0;
+}
+
+.duel-bench__chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: 14px;
+  color: #e8e8f0;
+}
+
+.duel-bench__name {
+  flex: 1;
+  text-align: left;
+}
+
+.duel-bench__stats {
+  font-size: 12px;
+  color: #8890a5;
+  font-variant-numeric: tabular-nums;
+}
+
+.duel-bench__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.duel-bench__actions button {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+  padding: 3px 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.duel-bench__actions button:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.duel-bench__actions button:not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.18);
+}
