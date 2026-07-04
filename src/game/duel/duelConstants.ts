@@ -110,6 +110,51 @@ export const DUEL = {
   flightTimeout: 5,        // s hard cap per throw
 } as const
 
+// Venue skins — palette tokens from docs/ART_DIRECTION.md.
+export type VenueId = 'official' | 'underground'
+
+export const VENUES: Record<
+  VenueId,
+  {
+    name: string
+    bg: string
+    floor: string
+    ring: string
+    ringOpacity: number
+    ambient: { color: string; intensity: number }
+    key: { color: string; intensity: number; pos: [number, number, number] }
+    fill: { color: string; intensity: number; pos: [number, number, number] }
+    hudAccent: string
+    // Rules: does the rival bring modded chips?
+    rivalMods: boolean
+  }
+> = {
+  official: {
+    name: 'OFFICIAL ARENA',
+    bg: '#c9c2b2',          // dusty-cream sky, washed
+    floor: '#9a968c',       // concrete-gray
+    ring: '#5fd4e0',        // vending-cyan ring markings
+    ringOpacity: 0.8,
+    ambient: { color: '#e8dfc9', intensity: 0.65 },
+    key: { color: '#ffffff', intensity: 1.3, pos: [4, 8, 3] },
+    fill: { color: '#f2a7b8', intensity: 0.35, pos: [-5, 4, -4] }, // sunset-pink rim
+    hudAccent: '#4e8a80',   // oxidized-teal
+    rivalMods: false,       // weigh-in enforced: clean chips only
+  },
+  underground: {
+    name: 'UNDERGROUND DEN',
+    bg: '#16141a',          // oil-black
+    floor: '#5a5750',       // wet-gray
+    ring: '#e8963c',        // rough sodium/signal ring
+    ringOpacity: 0.65,
+    ambient: { color: '#6a5a48', intensity: 0.3 },
+    key: { color: '#e8963c', intensity: 1.6, pos: [2, 6, 1] },     // sodium tube
+    fill: { color: '#c04f8a', intensity: 0.5, pos: [-4, 3, -3] }, // dirty-magenta
+    hudAccent: '#e8963c',
+    rivalMods: true,        // anything goes down here
+  },
+}
+
 // Landing-flatness grade shown in the HUD. Straightness is 0..1.
 export function landingGrade(straightness: number): 'CLEAN' | 'OK' | 'TILTED' {
   if (straightness > 0.85) return 'CLEAN'

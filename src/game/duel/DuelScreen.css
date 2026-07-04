@@ -57,8 +57,13 @@
 
 .duel-title p {
   font-size: 13px;
-  color: #9aa2b5;
+  color: #d8dce6;
   margin: 4px 0 0;
+  text-shadow: 0 1px 3px rgba(10, 12, 18, 0.9);
+}
+
+.duel-title h1 {
+  text-shadow: 0 1px 4px rgba(10, 12, 18, 0.7);
 }
 
 .duel-hud--stats {
@@ -178,6 +183,21 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+}
+
+.duel-gameover__venues {
+  display: flex;
+  gap: 14px;
+}
+
+.duel-gameover__btn--under {
+  filter: hue-rotate(65deg) saturate(0.9);
+}
+
+.duel-gameover__venuehint {
+  font-size: 12px;
+  color: #8890a5;
+  margin: 2px 0 0;
 }
 
 .duel-bench {

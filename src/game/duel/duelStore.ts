@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { DUEL } from './duelConstants'
+import { DUEL, VENUES, type VenueId } from './duelConstants'
 import { getChip } from './chipRegistry'
 import { speedForRange } from './ballistics'
 
@@ -78,8 +78,9 @@ function starterCollection(): OwnedChip[] {
 }
 
 /** Build the duel lineup: player side from the collection's first chips,
- * rival side a fresh roster (an endless supply of neighborhood kids). */
-function buildChips(collection: OwnedChip[]): ChipState[] {
+ * rival side a fresh roster (an endless supply of duelists). In the
+ * underground den the rival brings modded chips — no weigh-in there. */
+function buildChips(collection: OwnedChip[], venue: VenueId): ChipState[] {
   const chips: ChipState[] = []
   collection.slice(0, DUEL.stackSize).forEach((owned, i) => {
     chips.push({
@@ -91,13 +92,29 @@ function buildChips(collection: OwnedChip[]): ChipState[] {
       uid: owned.uid,
     })
   })
+  const rivalMods = VENUES[venue].rivalMods
   for (let i = 0; i < DUEL.stackSize; i++) {
+    const base = { ...CHIP_TYPES[ROSTER[i % ROSTER.length]] }
+    if (rivalMods && Math.random() < 0.6) {
+      // Street mods: burned or painted, sometimes twice.
+      const n = Math.random() < 0.3 ? 2 : 1
+      for (let k = 0; k < n; k++) {
+        if (Math.random() < 0.5) {
+          base.camber = Math.min(1, base.camber + 0.25)
+          base.label += ' 🔥'
+        } else {
+          base.weight = Math.min(2, base.weight + 0.25)
+          base.thickness = Math.min(2, base.thickness + 0.25)
+          base.label += ' ⬜'
+        }
+      }
+    }
     chips.push({
       id: `ai-${i}`,
       side: 'ai',
       index: i,
       status: i === 0 ? 'field' : 'stack',
-      params: { ...CHIP_TYPES[ROSTER[i % ROSTER.length]] },
+      params: base,
       uid: -1,
     })
   }
@@ -141,6 +158,7 @@ interface DuelState {
   collection: OwnedChip[]
   supplies: { lighter: number; paint: number }
   freshPack: boolean // collection was emptied and restocked
+  venue: VenueId
 
   // Juice
   slam: SlamEvent | null
@@ -161,7 +179,7 @@ interface DuelState {
     stance: number
   }) => void
   resolveOutcome: () => void
-  nextDuel: () => void
+  nextDuel: (venue?: VenueId) => void
   modChip: (uid: number, mod: 'burn' | 'paint') => void
   moveChipUp: (uid: number) => void
   recordSlam: (x: number, z: number, strength: number) => void
@@ -212,10 +230,11 @@ const initialCollection = starterCollection()
 export const useDuelStore = create<DuelState>((set, get) => ({
   phase: 'ready',
   currentTurn: 'player',
-  chips: buildChips(initialCollection),
+  chips: buildChips(initialCollection, 'official'),
   collection: initialCollection,
   supplies: { lighter: 2, paint: 2 },
   freshPack: false,
+  venue: 'official',
   activeChipId: null,
   throwId: 0,
   resetId: 0,
@@ -416,13 +435,14 @@ export const useDuelStore = create<DuelState>((set, get) => ({
     })
   },
 
-  nextDuel: () => {
+  nextDuel: (venue) => {
     if (hitstopTimer) clearTimeout(hitstopTimer)
     set((s) => {
+      const v = venue ?? s.venue
       // Cleaned out? A fresh pack from the corner store.
       const restock = s.collection.length === 0
       const collection = restock ? starterCollection() : s.collection
-      const chips = buildChips(collection)
+      const chips = buildChips(collection, v)
       const playerHasStack = chips.some(
         (c) => c.side === 'player' && c.status === 'stack'
       )
@@ -431,6 +451,7 @@ export const useDuelStore = create<DuelState>((set, get) => ({
         freshPack: restock,
         supplies: restock ? { lighter: 2, paint: 2 } : s.supplies,
         chips,
+        venue: v,
         currentTurn: playerHasStack ? ('player' as DuelSide) : ('ai' as DuelSide),
         phase: playerHasStack ? ('ready' as DuelPhase) : ('ai_think' as DuelPhase),
         activeChipId: null,

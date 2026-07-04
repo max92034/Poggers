@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Canvas, useThree, useFrame } from '@react-three/fiber'
 import { Physics, RigidBody, CuboidCollider } from '@react-three/rapier'
 import * as THREE from 'three'
-import { DUEL } from './duelConstants'
+import { DUEL, VENUES } from './duelConstants'
 import { useDuelStore } from './duelStore'
 import { getChip } from './chipRegistry'
 import { DuelChip } from './DuelChip'
@@ -56,24 +56,24 @@ function CameraRig() {
   return null
 }
 
-function Ground() {
+function Ground({ color }: { color: string }) {
   return (
     <RigidBody type="fixed" colliders={false} friction={DUEL.groundFriction} restitution={DUEL.groundRestitution}>
       <CuboidCollider args={[DUEL.groundSize / 2, 0.05, DUEL.groundSize / 2]} position={[0, -0.05, 0]} />
       <mesh receiveShadow position={[0, -0.05, 0]}>
         <boxGeometry args={[DUEL.groundSize, 0.1, DUEL.groundSize]} />
-        <meshStandardMaterial color="#8d8a82" flatShading roughness={0.95} />
+        <meshStandardMaterial color={color} flatShading roughness={0.95} />
       </mesh>
     </RigidBody>
   )
 }
 
-/** The chalk circle — visual ring-out boundary (rules attach in checkpoint 3). */
-function ChalkCircle() {
+/** The ring boundary — venue-painted. */
+function RingCircle({ color, opacity }: { color: string; opacity: number }) {
   return (
     <mesh rotation-x={-Math.PI / 2} position-y={0.002}>
       <ringGeometry args={[DUEL.circleRadius - 0.06, DUEL.circleRadius + 0.06, 64]} />
-      <meshBasicMaterial color="#efe9d8" transparent opacity={0.85} />
+      <meshBasicMaterial color={color} transparent opacity={opacity} />
     </mesh>
   )
 }
@@ -82,25 +82,32 @@ export function DuelScene() {
   const hitstop = useDuelStore((s) => s.hitstop)
   const timeScale = useDuelStore((s) => s.timeScale)
   const chipList = useDuelStore((s) => s.chips)
+  const venue = VENUES[useDuelStore((s) => s.venue)]
   return (
     <Canvas
       shadows
       camera={{ fov: 42, near: 0.1, far: 100 }}
       style={{ position: 'absolute', inset: 0 }}
     >
-      <color attach="background" args={['#1a1e28']} />
+      <color attach="background" args={[venue.bg]} />
       <CameraRig />
 
-      <ambientLight intensity={0.55} />
+      <ambientLight color={venue.ambient.color} intensity={venue.ambient.intensity} />
       <directionalLight
-        position={[4, 8, 3]}
-        intensity={1.4}
+        position={venue.key.pos}
+        color={venue.key.color}
+        intensity={venue.key.intensity}
         castShadow
         shadow-mapSize={[1024, 1024]}
         shadow-camera-left={-6}
         shadow-camera-right={6}
         shadow-camera-top={6}
         shadow-camera-bottom={-6}
+      />
+      <directionalLight
+        position={venue.fill.pos}
+        color={venue.fill.color}
+        intensity={venue.fill.intensity}
       />
 
       <Physics
@@ -110,13 +117,13 @@ export function DuelScene() {
         timeStep={timeScale === 1 ? 'vary' : (1 / 60) * timeScale}
         paused={hitstop}
       >
-        <Ground />
+        <Ground color={venue.floor} />
         {chipList.map((c) => (
           <DuelChip key={c.id} chipId={c.id} side={c.side} index={c.index} />
         ))}
       </Physics>
 
-      <ChalkCircle />
+      <RingCircle color={venue.ring} opacity={venue.ringOpacity} />
       <GustRing />
       <AimReticle />
     </Canvas>

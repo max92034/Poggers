@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { ArrowLeft, RotateCcw } from 'lucide-react'
 import { useGameStore } from '../store/gameStore'
 import { useDuelStore } from './duelStore'
-import { DUEL, landingGrade } from './duelConstants'
+import { DUEL, VENUES, landingGrade } from './duelConstants'
 import { computeAiThrow } from './duelAI'
 import { playSlam } from './slamSound'
 import { DuelScene } from './DuelScene'
@@ -27,6 +27,7 @@ export function DuelScreen() {
   const setPlayerStance = useDuelStore((s) => s.setPlayerStance)
   const collection = useDuelStore((s) => s.collection)
   const supplies = useDuelStore((s) => s.supplies)
+  const venueDef = VENUES[useDuelStore((s) => s.venue)]
   const modChip = useDuelStore((s) => s.modChip)
   const moveChipUp = useDuelStore((s) => s.moveChipUp)
   const aiThrow = useDuelStore((s) => s.aiThrow)
@@ -115,7 +116,7 @@ export function DuelScreen() {
           <ArrowLeft size={16} /> Menu
         </button>
         <div className="duel-title">
-          <h1>DUEL PROTOTYPE</h1>
+          <h1 style={{ color: venueDef.hudAccent }}>{venueDef.name}</h1>
           <p>{turnLabel}</p>
         </div>
         <div className="duel-tally">
@@ -227,9 +228,21 @@ export function DuelScreen() {
             ))}
           </div>
 
-          <button className="btn duel-gameover__btn" onClick={nextDuel}>
-            <RotateCcw size={16} /> Next Duel (R)
-          </button>
+          <div className="duel-gameover__venues">
+            <button className="btn duel-gameover__btn" onClick={() => nextDuel('official')}>
+              <RotateCcw size={16} /> Official Arena
+            </button>
+            <button
+              className="btn duel-gameover__btn duel-gameover__btn--under"
+              onClick={() => nextDuel('underground')}
+            >
+              <RotateCcw size={16} /> Underground Den
+            </button>
+          </div>
+          <p className="duel-gameover__venuehint">
+            Official: weigh-in enforced, rivals play clean. Underground: no
+            rules — rivals bring modded chips.
+          </p>
         </div>
       )}
     </div>
