@@ -53,6 +53,10 @@ export const DUEL = {
   aimMinDist: 1.2,         // m from hand — can't slam at your own feet
   lateralErrRad: 0.12,     // max direction error at straightness 0
 
+  // --- Stance (throw position along your own half's arc) ---
+  stanceMaxRad: 1.22,      // ±70° around your edge of the ring
+  stanceKeyStep: 0.05,     // radians per key repeat (A/D, arrows)
+
   // --- Flick gesture sampling ---
   flickWindowMs: 90,       // release velocity read from the last N ms of pointer travel
   minFlickDistPx: 30,      // shorter drags are ignored (not a throw)

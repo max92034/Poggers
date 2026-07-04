@@ -9,26 +9,33 @@ import { DuelChip } from './DuelChip'
 import { GustRing } from './GustRing'
 import { AimReticle } from './AimReticle'
 
-const CAM_HOME = new THREE.Vector3(0, 3.6, 5.8)
-const CAM_HOME_TARGET = new THREE.Vector3(0, 0.1, -0.6)
+const CAM_DIST = 5.8
+const CAM_HEIGHT = 3.6
 
-/** Over-the-shoulder camera; pushes in low when the defender chip teeters. */
+/** Over-the-shoulder camera: orbits with the player's stance, pushes in
+ * low when a chip teeters. */
 function CameraRig() {
   const camera = useThree((s) => s.camera)
-  const targetRef = useRef(CAM_HOME_TARGET.clone())
+  const homePosRef = useRef(new THREE.Vector3(0, CAM_HEIGHT, CAM_DIST))
+  const homeTargetRef = useRef(new THREE.Vector3(0, 0.1, -0.6))
+  const targetRef = useRef(new THREE.Vector3(0, 0.1, -0.6))
   const wobbleTargetRef = useRef(new THREE.Vector3())
   const wobblePosRef = useRef(new THREE.Vector3())
 
   useEffect(() => {
-    camera.position.copy(CAM_HOME)
-    camera.lookAt(CAM_HOME_TARGET)
+    camera.position.copy(homePosRef.current)
+    camera.lookAt(homeTargetRef.current)
   }, [camera])
 
   useFrame(() => {
     const store = useDuelStore.getState()
     const slowmo = store.timeScale < 1
-    let wantPos = CAM_HOME
-    let wantTarget: THREE.Vector3 = CAM_HOME_TARGET
+    // Home framing rotates with the player's stance around the ring.
+    const a = store.playerStance
+    homePosRef.current.set(Math.sin(a) * CAM_DIST, CAM_HEIGHT, Math.cos(a) * CAM_DIST)
+    homeTargetRef.current.set(Math.sin(a) * -0.6, 0.1, Math.cos(a) * -0.6)
+    let wantPos: THREE.Vector3 = homePosRef.current
+    let wantTarget: THREE.Vector3 = homeTargetRef.current
     if (slowmo && store.wobbleChipId) {
       // Look at the teetering chip, from low on the player's side.
       const body = getChip(store.wobbleChipId)

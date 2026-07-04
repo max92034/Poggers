@@ -52,9 +52,13 @@ function makeChips(): ChipState[] {
   return chips
 }
 
+/** Hand position on the stance arc: angle 0 = the center of your edge. */
 export function handPosFor(side: DuelSide): [number, number, number] {
+  const s = useDuelStore.getState()
+  const angle = side === 'player' ? s.playerStance : s.aiStance
+  const r = DUEL.spawnPos[2]
   const sign = side === 'player' ? 1 : -1
-  return [DUEL.spawnPos[0], DUEL.spawnPos[1], DUEL.spawnPos[2] * sign]
+  return [Math.sin(angle) * r * sign, DUEL.spawnPos[1], Math.cos(angle) * r * sign]
 }
 
 interface DuelState {
@@ -71,6 +75,8 @@ interface DuelState {
   pointerNdc: { x: number; y: number } | null
   aimPoint: { x: number; z: number } | null   // live preview under the cursor
   lockedAim: { x: number; z: number } | null  // tapped-in target the throw uses
+  playerStance: number // radians along the player's arc, 0 = edge center
+  aiStance: number
 
   winner: DuelSide | null
   winReason: WinReason | null
@@ -88,12 +94,14 @@ interface DuelState {
   setPointerNdc: (x: number, y: number) => void
   setAimPoint: (x: number, z: number) => void
   lockAim: () => void
+  setPlayerStance: (angle: number) => void
   throwChip: (flick: { speed: number; straightness: number }) => void
   aiThrow: (params: {
     aimX: number
     aimZ: number
     speed: number
     straightness: number
+    stance: number
   }) => void
   resolveOutcome: () => void
   nextDuel: () => void
@@ -151,6 +159,8 @@ export const useDuelStore = create<DuelState>((set, get) => ({
   pointerNdc: null,
   aimPoint: null,
   lockedAim: null,
+  playerStance: 0,
+  aiStance: 0,
   winner: null,
   winReason: null,
   playerCaptured: 0,
@@ -173,6 +183,13 @@ export const useDuelStore = create<DuelState>((set, get) => ({
     const s = get()
     if (s.phase !== 'ready' || s.currentTurn !== 'player' || !s.aimPoint) return
     set({ lockedAim: { ...s.aimPoint } })
+  },
+
+  setPlayerStance: (angle) => {
+    const s = get()
+    if (s.phase !== 'ready' || s.currentTurn !== 'player') return
+    const clamped = Math.max(-DUEL.stanceMaxRad, Math.min(DUEL.stanceMaxRad, angle))
+    if (clamped !== s.playerStance) set({ playerStance: clamped })
   },
 
   throwChip: (flick) => {
@@ -199,11 +216,15 @@ export const useDuelStore = create<DuelState>((set, get) => ({
     })
   },
 
-  aiThrow: ({ aimX, aimZ, speed, straightness }) => {
+  aiThrow: ({ aimX, aimZ, speed, straightness, stance }) => {
     const s = get()
     if (s.phase !== 'ai_think' || s.currentTurn !== 'ai') return
     const chip = nextStackChip(s.chips, 'ai')
     if (!chip) return
+    // Stance must be set BEFORE buildThrow so the hand position is right.
+    set({
+      aiStance: Math.max(-DUEL.stanceMaxRad, Math.min(DUEL.stanceMaxRad, stance)),
+    })
     const params = buildThrow('ai', chip.id, aimX, aimZ, speed, straightness)
     set({
       phase: 'flight',
@@ -316,6 +337,8 @@ export const useDuelStore = create<DuelState>((set, get) => ({
       pointerNdc: null,
       aimPoint: null,
       lockedAim: null,
+      playerStance: 0,
+      aiStance: 0,
       winner: null,
       winReason: null,
       playerCaptured: 0,

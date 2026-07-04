@@ -23,6 +23,8 @@ export function DuelScreen() {
   const aiChipsWon = useDuelStore((s) => s.aiChipsWon)
   const slam = useDuelStore((s) => s.slam)
   const lockedAim = useDuelStore((s) => s.lockedAim)
+  const playerStance = useDuelStore((s) => s.playerStance)
+  const setPlayerStance = useDuelStore((s) => s.setPlayerStance)
   const aiThrow = useDuelStore((s) => s.aiThrow)
   const nextDuel = useDuelStore((s) => s.nextDuel)
 
@@ -41,12 +43,16 @@ export function DuelScreen() {
     if (slam) playSlam(slam.strength)
   }, [slam?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // R = next duel (once decided), Esc = back to menu
+  // R = next duel (once decided), Esc = menu, A/D or arrows = stance
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.key === 'r' || e.key === 'R') && useDuelStore.getState().phase === 'gameover')
-        nextDuel()
+      const st = useDuelStore.getState()
+      if ((e.key === 'r' || e.key === 'R') && st.phase === 'gameover') nextDuel()
       if (e.key === 'Escape') backToMenu()
+      if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft')
+        st.setPlayerStance(st.playerStance - DUEL.stanceKeyStep)
+      if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight')
+        st.setPlayerStance(st.playerStance + DUEL.stanceKeyStep)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -67,7 +73,7 @@ export function DuelScreen() {
       : currentTurn === 'player'
       ? lockedAim
         ? 'Target locked — flick forward to slam! (tap again to re-aim)'
-        : 'YOUR TURN — tap the ground to set your target'
+        : 'YOUR TURN — move with A/D, tap the ground to set your target'
       : 'RIVAL IS LINING UP...'
 
   const reasonText = (() => {
@@ -133,6 +139,20 @@ export function DuelScreen() {
             <span className="duel-stat__label">Snap</span>
             <span className="duel-stat__value">{landingGrade(lastThrow.straightness)}</span>
           </div>
+        </div>
+      )}
+
+      {currentTurn === 'player' && phase === 'ready' && (
+        <div className="duel-stance">
+          <span className="duel-stance__label">STANCE</span>
+          <input
+            type="range"
+            min={-DUEL.stanceMaxRad}
+            max={DUEL.stanceMaxRad}
+            step={0.02}
+            value={playerStance}
+            onChange={(e) => setPlayerStance(parseFloat(e.target.value))}
+          />
         </div>
       )}
 

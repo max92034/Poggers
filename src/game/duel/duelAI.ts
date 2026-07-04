@@ -1,6 +1,6 @@
 import { DUEL } from './duelConstants'
 import { getChip } from './chipRegistry'
-import { useDuelStore, handPosFor } from './duelStore'
+import { useDuelStore } from './duelStore'
 import { speedForRange } from './ballistics'
 
 /**
@@ -14,44 +14,55 @@ export function computeAiThrow(): {
   aimZ: number
   speed: number
   straightness: number
+  stance: number
 } {
   const s = useDuelStore.getState()
-  const hand = handPosFor('ai')
   const targets = s.chips.filter((c) => c.side === 'player' && c.status === 'field')
 
-  let aimX: number
-  let aimZ: number
+  // Nearest live player chip (distance from the AI's edge center).
   let bestPos: { x: number; z: number } | null = null
   let bestDist = Infinity
   for (const t of targets) {
     const body = getChip(t.id)
     if (!body) continue
     const p = body.translation()
-    const d = Math.hypot(p.x - hand[0], p.z - hand[2])
+    const d = Math.hypot(p.x, p.z + DUEL.spawnPos[2])
     if (d < bestDist) {
       bestDist = d
       bestPos = { x: p.x, z: p.z }
     }
   }
 
+  let aimX: number
+  let aimZ: number
+  let stance = 0
   if (bestPos) {
-    // Land ~1.0m beside the target (small edge gap — closer would overlap
-    // and pin it instead of flipping it), perpendicular to the throw line.
-    const tx = bestPos.x - hand[0]
-    const tz = bestPos.z - hand[2]
-    const tlen = Math.hypot(tx, tz) || 1
-    const px = -tz / tlen
-    const pz = tx / tlen
-    const flank = Math.random() < 0.5 ? 1 : -1
-    aimX = bestPos.x + px * flank * 1.0 + gauss() * DUEL.aiAimNoise
-    aimZ = bestPos.z + pz * flank * 1.0 + gauss() * DUEL.aiAimNoise
+    // Denial approach: land on the CENTER side of the target so the gust
+    // tips it outward, toward the ring edge. Aim 1.0m inward of it (any
+    // closer would overlap and pin instead of flip).
+    const tr = Math.hypot(bestPos.x, bestPos.z) || 1
+    const outX = bestPos.x / tr
+    const outZ = bestPos.z / tr
+    aimX = bestPos.x - outX * 1.0 + gauss() * DUEL.aiAimNoise
+    aimZ = bestPos.z - outZ * 1.0 + gauss() * DUEL.aiAimNoise
+    // Stance: stand where the hand→aim line continues into the target,
+    // i.e. on the arc behind the aim point as seen from the target.
+    const backX = aimX - outX * 2.0
+    const backZ = aimZ - outZ * 2.0
+    // AI arc position for stance φ is (−R·sinφ, −R·cosφ): invert.
+    stance = Math.atan2(-backX, -backZ) + gauss() * 0.15
   } else {
     // No targets: park defensively on the rival's own half.
     aimX = (Math.random() * 2 - 1) * 1.2
     aimZ = -(0.8 + Math.random() * 1.2)
   }
+  stance = Math.max(-DUEL.stanceMaxRad, Math.min(DUEL.stanceMaxRad, stance))
 
-  const dist = Math.hypot(aimX - hand[0], aimZ - hand[2])
+  // Hand position AT the chosen stance (mirror of handPosFor before the
+  // store has been updated with it).
+  const r = DUEL.spawnPos[2]
+  const hand = [-Math.sin(stance) * r, -Math.cos(stance) * r]
+  const dist = Math.hypot(aimX - hand[0], aimZ - hand[1])
   const required = speedForRange(dist)
   return {
     aimX,
@@ -59,6 +70,7 @@ export function computeAiThrow(): {
     speed: required * (1 + gauss() * DUEL.aiSpeedNoise),
     straightness:
       DUEL.aiMinStraightness + Math.random() * (1 - DUEL.aiMinStraightness),
+    stance,
   }
 }
 

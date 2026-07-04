@@ -63,6 +63,10 @@ export function DuelChip({ chipId, side, index }: DuelChipProps) {
   })
   const isNextToThrow = stackRank === 0
   const isActive = useDuelStore((s) => s.activeChipId === chipId)
+  // Subscribe to my side's stance so the in-hand chip follows it live.
+  const myStance = useDuelStore((s) =>
+    side === 'player' ? s.playerStance : s.aiStance
+  )
 
   const inHand =
     status === 'stack' &&
@@ -96,7 +100,7 @@ export function DuelChip({ chipId, side, index }: DuelChipProps) {
     body.setLinvel({ x: 0, y: 0, z: 0 }, true)
     body.setAngvel({ x: 0, y: 0, z: 0 }, true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, inHand, stackRank, resetId])
+  }, [status, inHand, stackRank, resetId, myStance])
 
   // --- Launch ---
   useEffect(() => {

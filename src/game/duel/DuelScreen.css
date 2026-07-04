@@ -121,6 +121,31 @@
   color: #8890a5;
 }
 
+.duel-stance {
+  position: absolute;
+  z-index: 30;
+  bottom: 20px;
+  left: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(20, 24, 34, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+
+.duel-stance__label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #8890a5;
+}
+
+.duel-stance input[type='range'] {
+  width: 180px;
+  accent-color: #e8b23a;
+}
+
 .duel-gameover {
   position: absolute;
   z-index: 40;
