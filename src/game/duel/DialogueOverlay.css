@@ -1,13 +1,23 @@
 .dialogue {
   position: absolute;
   inset: 0;
-  z-index: 50; /* above FlickInput (20) and HUD (30) */
+  z-index: 50; /* above FlickInput (20), HUD (30), and gameover (40) */
   cursor: pointer;
   display: flex;
-  align-items: flex-end;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
   padding-bottom: 6vh;
   background: linear-gradient(to top, rgba(10, 12, 18, 0.55), transparent 40%);
+}
+
+.dialogue__portrait {
+  width: min(420px, 60vw);
+  max-height: 38vh;
+  object-fit: contain;
+  margin-bottom: -8px;
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.5));
+  pointer-events: none;
 }
 
 .dialogue__box {

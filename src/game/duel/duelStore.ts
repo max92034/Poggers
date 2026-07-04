@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { DUEL, VENUES, type VenueId } from './duelConstants'
-import { STORY_RIVALS, type Rival, type DialogueLine } from './story'
+import { STORY_RIVALS, decorate, type Rival, type DialogueLine } from './story'
 import { getChip } from './chipRegistry'
 import { speedForRange } from './ballistics'
 
@@ -414,6 +414,15 @@ export const useDuelStore = create<DuelState>((set, get) => ({
           ? { lighter: s.supplies.lighter + 1, paint: s.supplies.paint + 1 }
           : s.supplies
 
+      // Story rivals react with a full exchange over the result screen.
+      const rival = s.storyMode ? STORY_RIVALS[s.rivalIndex] ?? null : null
+      const outro =
+        rival && winner !== null
+          ? winner === 'player'
+            ? decorate(rival.loseDialogue, rival, 'defeat')
+            : decorate(rival.winDialogue, rival, 'critical')
+          : null
+
       set({
         phase: 'gameover',
         chips,
@@ -428,6 +437,8 @@ export const useDuelStore = create<DuelState>((set, get) => ({
         aiChipsWon: s.aiChipsWon + aiCaptured,
         collection,
         supplies,
+        dialogue: outro,
+        dialogueIndex: 0,
       })
     }
 
@@ -472,7 +483,7 @@ export const useDuelStore = create<DuelState>((set, get) => ({
         supplies: restock ? { lighter: 2, paint: 2 } : s.supplies,
         chips,
         venue: v,
-        dialogue: showIntro ? rival!.introDialogue : null,
+        dialogue: showIntro ? decorate(rival!.introDialogue, rival!, 'taunt') : null,
         dialogueIndex: 0,
         introShownFor: showIntro ? s.rivalIndex : s.introShownFor,
         currentTurn: playerHasStack ? ('player' as DuelSide) : ('ai' as DuelSide),

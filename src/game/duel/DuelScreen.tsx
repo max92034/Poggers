@@ -195,11 +195,6 @@ export function DuelScreen() {
             {turnLabel}
           </h2>
           <p className="duel-gameover__reason">{reasonText}</p>
-          {rival && (
-            <p className="duel-gameover__rivalline">
-              {rival.name}: “{winner === 'player' ? rival.loseLine : rival.winLine}”
-            </p>
-          )}
           {storyCleared && (
             <p className="duel-gameover__rivalline">
               LADDER CLEAR — the district has no one left to send. (More
