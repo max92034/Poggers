@@ -19,3 +19,8 @@ export function otherChips(excludeId: string): Array<[string, RapierRigidBody]> 
 export function getChip(id: string): RapierRigidBody | undefined {
   return bodies.get(id)
 }
+
+// Dev-only: expose for scripted playtesting/debugging.
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  ;(window as unknown as Record<string, unknown>).__chipBodies = bodies
+}

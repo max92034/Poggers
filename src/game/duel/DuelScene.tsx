@@ -7,6 +7,7 @@ import { useDuelStore } from './duelStore'
 import { getChip } from './chipRegistry'
 import { DuelChip } from './DuelChip'
 import { GustRing } from './GustRing'
+import { AimReticle } from './AimReticle'
 
 const CAM_HOME = new THREE.Vector3(0, 3.6, 5.8)
 const CAM_HOME_TARGET = new THREE.Vector3(0, 0.1, -0.6)
@@ -28,10 +29,9 @@ function CameraRig() {
     const slowmo = store.timeScale < 1
     let wantPos = CAM_HOME
     let wantTarget: THREE.Vector3 = CAM_HOME_TARGET
-    if (slowmo && store.lastThrow) {
-      // Look at the teetering defender chip, from low on the player's side.
-      const defender = store.lastThrow.attacker === 'player' ? 'ai' : 'player'
-      const body = getChip(defender)
+    if (slowmo && store.wobbleChipId) {
+      // Look at the teetering chip, from low on the player's side.
+      const body = getChip(store.wobbleChipId)
       if (body) {
         const p = body.translation()
         wobbleTargetRef.current.set(p.x, 0.15, p.z)
@@ -74,6 +74,7 @@ function ChalkCircle() {
 export function DuelScene() {
   const hitstop = useDuelStore((s) => s.hitstop)
   const timeScale = useDuelStore((s) => s.timeScale)
+  const chipList = useDuelStore((s) => s.chips)
   return (
     <Canvas
       shadows
@@ -103,12 +104,14 @@ export function DuelScene() {
         paused={hitstop}
       >
         <Ground />
-        <DuelChip role="ai" />
-        <DuelChip role="player" />
+        {chipList.map((c) => (
+          <DuelChip key={c.id} chipId={c.id} side={c.side} index={c.index} />
+        ))}
       </Physics>
 
       <ChalkCircle />
       <GustRing />
+      <AimReticle />
     </Canvas>
   )
 }

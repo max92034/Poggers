@@ -25,7 +25,9 @@ export const DUEL = {
   spawnPos: [0, 1.35, 2.7] as const,
   minSpeed: 4.5,           // m/s, weakest meaningful slam
   maxSpeed: 16,            // m/s, full wrist snap
-  pxPerMsToSpeed: 4.0,     // flick speed (px/ms) → launch speed (m/s)
+  pxPerMsToSpeed: 5.5,     // flick speed (px/ms) → launch speed (m/s) — a
+                           // comfortable ~2.2px/ms snap reaches 12 m/s (full
+                           // ring range) without wrist strain
   throwPitchRad: 0.26,     // ~15° downward pitch — flat menko-style slam; with
                            // spawn height 1.35m this lands 2.7–3.7m out across
                            // the speed range, bracketing the defender at 3.2m
@@ -33,10 +35,23 @@ export const DUEL = {
   maxLandingTiltRad: 0.5,  // worst-case tilt from a crooked flick (~29°)
 
   // --- Duel structure ---
-  maxThrows: 10,           // total throws before the duel is called a draw
+  stackSize: 4,            // chips per side; chip 0 is auto-anted into the ring
   aiThinkMs: 1300,         // rival "thinking" delay before its throw
-  aiAimNoise: 0.3,         // m std-dev on the rival's intended landing point
+  aiAimNoise: 0.28,        // m std-dev on the rival's intended landing point
+  aiSpeedNoise: 0.1,       // fractional noise on the rival's throw power
   aiMinStraightness: 0.8,  // rival flick quality range (0.8..1.0)
+
+  // Ante spots: each side's first chip starts in the ring (slightly on
+  // their own half, offset sideways so they don't align boringly).
+  anteOffsetZ: 0.9,
+  anteOffsetX: 0.4,
+
+  // Pile spots: remaining stack chips sit beside the ring, by the owner.
+  pilePos: [2.1, 2.4] as const, // |x|, |z| — sign by side
+
+  // --- Aim-then-snap ---
+  aimMinDist: 1.2,         // m from hand — can't slam at your own feet
+  lateralErrRad: 0.12,     // max direction error at straightness 0
 
   // --- Flick gesture sampling ---
   flickWindowMs: 90,       // release velocity read from the last N ms of pointer travel
@@ -45,17 +60,22 @@ export const DUEL = {
   // --- Gust (the air-pressure flip — the game's core novel system) ---
   // A flat, fast slam shoves a ground-level air ring outward; chips inside
   // the ring get lifted at their near edge and tip away from the impact.
-  gustRadius: 1.8,          // m, how far the air blast reaches
+  gustRadius: 2.2,          // m, how far the air blast reaches. Chips are
+                            // 0.45m radius, so center distances under ~0.9m
+                            // mean overlap (= pinning); the flip band must
+                            // live at 0.9–1.3m, hence the generous reach.
   gustMinFlatness: 0.25,    // below this |up·y| at impact the gust fizzles
-  gustRefSpeed: 10,         // impact speed (m/s) that yields p=1 at distance 0 —
-                            // a clean 10 m/s slam right next to the target flips it
-  // The gust gives targets a hop + tip (not a raw edge impulse, which spins
-  // chips like flipped coins). p = normalized gust power 0..1 at the target:
-  gustLift: 1.5,            // m/s upward hop at p=1
-  gustSlide: 0.5,           // m/s outward push at p=1
-  gustTipOmega: 30,         // rad/s tipping rotation at p=1 (tuned empirically:
-                            // ground friction at launch + angular damping eat a
-                            // large share; effective max rotation ≈ 200–260°)
+  gustRefSpeed: 8,          // impact speed (m/s) that yields p=1 at distance 0.
+                            // At a full 12 m/s slam: p≈0.82 at 1.0m, 0.61 at
+                            // 1.3m — flips come from landing with a small gap
+  // The gust lifts the target's NEAR edge with an impulse; the contact
+  // solver turns that into a pivot about the grounded far edge — the real
+  // flip motion. p = normalized gust power 0..1 at the target.
+  // J = base + scale·p N·s at the edge of the 0.03kg chip: flip threshold
+  // sits around J≈0.05; the +scale ceiling stays below somersault territory.
+  gustEdgeImpulseBase: 0.015,
+  gustEdgeImpulseScale: 0.065,
+  gustSlide: 0.3,           // outward fraction of the edge impulse
   gustPreLift: 0.02,        // m — unstick the target from the ground before the
                             // kick so the rising rim doesn't grind away the spin
   slamVelocityKeep: 0.18,   // fraction of the thrower's velocity surviving a

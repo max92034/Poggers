@@ -1,37 +1,62 @@
 import { DUEL } from './duelConstants'
 import { getChip } from './chipRegistry'
+import { useDuelStore, handPosFor } from './duelStore'
+import { speedForRange } from './ballistics'
 
 /**
- * The rival's throw brain: aim to land BESIDE the player's chip (where the
- * gust flips best), with gaussian aim noise and imperfect flick quality.
+ * The rival's throw brain: pick the closest live player chip, aim to land
+ * beside it (where the gust flips best), with gaussian aim noise, power
+ * noise, and imperfect snap quality. With no targets on the field, place
+ * the chip defensively on its own half.
  */
 export function computeAiThrow(): {
-  dirX: number
-  dirZ: number
+  aimX: number
+  aimZ: number
   speed: number
   straightness: number
 } {
-  const target = getChip('player')?.translation() ?? { x: 0, y: 0, z: 0.5 }
-  const hand = { x: DUEL.spawnPos[0], z: -DUEL.spawnPos[2] } // AI side
+  const s = useDuelStore.getState()
+  const hand = handPosFor('ai')
+  const targets = s.chips.filter((c) => c.side === 'player' && c.status === 'field')
 
-  // Ideal landing: ~0.5m to the side of the target chip.
-  const tx = target.x - hand.x
-  const tz = target.z - hand.z
-  const tlen = Math.hypot(tx, tz) || 1
-  const px = -tz / tlen // perpendicular
-  const pz = tx / tlen
-  const side = Math.random() < 0.5 ? 1 : -1
-  const lx = target.x + px * side * 0.5 + gauss() * DUEL.aiAimNoise
-  const lz = target.z + pz * side * 0.5 + gauss() * DUEL.aiAimNoise
+  let aimX: number
+  let aimZ: number
+  let bestPos: { x: number; z: number } | null = null
+  let bestDist = Infinity
+  for (const t of targets) {
+    const body = getChip(t.id)
+    if (!body) continue
+    const p = body.translation()
+    const d = Math.hypot(p.x - hand[0], p.z - hand[2])
+    if (d < bestDist) {
+      bestDist = d
+      bestPos = { x: p.x, z: p.z }
+    }
+  }
 
-  const dx = lx - hand.x
-  const dz = lz - hand.z
-  const range = Math.hypot(dx, dz) || 1
+  if (bestPos) {
+    // Land ~1.0m beside the target (small edge gap — closer would overlap
+    // and pin it instead of flipping it), perpendicular to the throw line.
+    const tx = bestPos.x - hand[0]
+    const tz = bestPos.z - hand[2]
+    const tlen = Math.hypot(tx, tz) || 1
+    const px = -tz / tlen
+    const pz = tx / tlen
+    const flank = Math.random() < 0.5 ? 1 : -1
+    aimX = bestPos.x + px * flank * 1.0 + gauss() * DUEL.aiAimNoise
+    aimZ = bestPos.z + pz * flank * 1.0 + gauss() * DUEL.aiAimNoise
+  } else {
+    // No targets: park defensively on the rival's own half.
+    aimX = (Math.random() * 2 - 1) * 1.2
+    aimZ = -(0.8 + Math.random() * 1.2)
+  }
 
+  const dist = Math.hypot(aimX - hand[0], aimZ - hand[2])
+  const required = speedForRange(dist)
   return {
-    dirX: dx / range,
-    dirZ: dz / range,
-    speed: speedForRange(range),
+    aimX,
+    aimZ,
+    speed: required * (1 + gauss() * DUEL.aiSpeedNoise),
     straightness:
       DUEL.aiMinStraightness + Math.random() * (1 - DUEL.aiMinStraightness),
   }
@@ -40,26 +65,4 @@ export function computeAiThrow(): {
 /** Approximate standard normal via sum of uniforms. */
 function gauss(): number {
   return (Math.random() + Math.random() + Math.random() - 1.5) / 1.5
-}
-
-/** Ballistic range of a throw at speed s (fixed pitch, fixed hand height). */
-function rangeForSpeed(s: number): number {
-  const vy = s * Math.sin(DUEL.throwPitchRad) // downward
-  const h = DUEL.spawnPos[1]
-  const t = (-vy + Math.sqrt(vy * vy + 4 * 4.905 * h)) / (2 * 4.905)
-  return s * Math.cos(DUEL.throwPitchRad) * t
-}
-
-/** Invert rangeForSpeed by scanning the legal speed band. */
-function speedForRange(r: number): number {
-  let best = DUEL.minSpeed
-  let bestErr = Infinity
-  for (let s = DUEL.minSpeed; s <= DUEL.maxSpeed; s += 0.2) {
-    const err = Math.abs(rangeForSpeed(s) - r)
-    if (err < bestErr) {
-      bestErr = err
-      best = s
-    }
-  }
-  return best
 }

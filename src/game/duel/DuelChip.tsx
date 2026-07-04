@@ -1,88 +1,114 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { RigidBody, CylinderCollider, type RapierRigidBody } from '@react-three/rapier'
+import { RigidBody, ConvexHullCollider, type RapierRigidBody } from '@react-three/rapier'
 import * as THREE from 'three'
 import { DUEL } from './duelConstants'
-import { useDuelStore, type DuelSide } from './duelStore'
-import { registerChip, unregisterChip, otherChips } from './chipRegistry'
+import { useDuelStore, handPosFor, type DuelSide } from './duelStore'
+import { registerChip, unregisterChip, getChip } from './chipRegistry'
+import { makeChipGeometry, makeChipHullPoints } from './chipGeometry'
 
 interface DuelChipProps {
-  role: DuelSide
+  chipId: string
+  side: DuelSide
+  index: number
 }
 
 const UP = new THREE.Vector3(0, 1, 0)
+const PARKED_Y = 50
+
+// One shared lens geometry + hull for all chips.
+let sharedGeo: THREE.BufferGeometry | null = null
+let sharedHull: Float32Array | null = null
+function chipGeo() {
+  if (!sharedGeo) sharedGeo = makeChipGeometry()
+  return sharedGeo
+}
+function chipHull() {
+  if (!sharedHull) sharedHull = makeChipHullPoints()
+  return sharedHull
+}
+
+function pileSlot(side: DuelSide, rank: number): [number, number, number] {
+  const sign = side === 'player' ? 1 : -1
+  return [
+    DUEL.pilePos[0] * sign,
+    DUEL.chipThickness / 2 + rank * (DUEL.chipThickness + 0.004),
+    DUEL.pilePos[1] * sign,
+  ]
+}
+
+function antePos(side: DuelSide): [number, number, number] {
+  const sign = side === 'player' ? 1 : -1
+  return [DUEL.anteOffsetX * sign, DUEL.chipThickness / 2 + 0.005, DUEL.anteOffsetZ * sign]
+}
 
 /**
- * One side's chip. On your turn your chip is "in hand" (kinematic, hovering
- * at your edge of the circle); the opponent's chip lies where it last
- * settled. A flick/AI throw launches the hand chip; the gust fires on its
- * slam; the settled outcome is refereed by duelStore.resolveOutcome().
+ * One chip. Lifecycle: pile (kinematic, stacked beside the ring) → hand
+ * (kinematic hover when it's next to throw) → field (dynamic, stays where
+ * it lands, a live target) → captured/lost (parked out of sight).
  */
-export function DuelChip({ role }: DuelChipProps) {
+export function DuelChip({ chipId, side, index }: DuelChipProps) {
   const bodyRef = useRef<RapierRigidBody>(null)
 
   const phase = useDuelStore((s) => s.phase)
   const currentTurn = useDuelStore((s) => s.currentTurn)
   const throwId = useDuelStore((s) => s.throwId)
   const resetId = useDuelStore((s) => s.resetId)
+  const status = useDuelStore(
+    (s) => s.chips.find((c) => c.id === chipId)?.status ?? 'stack'
+  )
+  const stackRank = useDuelStore((s) => {
+    const mine = s.chips.filter((c) => c.side === side && c.status === 'stack')
+    return mine.findIndex((c) => c.id === chipId)
+  })
+  const isNextToThrow = stackRank === 0
+  const isActive = useDuelStore((s) => s.activeChipId === chipId)
 
-  const sign = role === 'player' ? 1 : -1
-  const handPos: [number, number, number] = [
-    DUEL.spawnPos[0],
-    DUEL.spawnPos[1],
-    DUEL.spawnPos[2] * sign,
-  ]
-  // AI's chip starts as the lying defender; player starts in hand.
-  const groundStart: [number, number, number] = [
-    DUEL.defenderPos[0],
-    DUEL.defenderPos[1],
-    DUEL.defenderPos[2],
-  ]
+  const inHand =
+    status === 'stack' &&
+    isNextToThrow &&
+    currentTurn === side &&
+    (phase === 'ready' || phase === 'ai_think')
 
-  const isMyTurn = currentTurn === role
-  const inHand = isMyTurn && (phase === 'ready' || phase === 'ai_think')
-
-  // --- Registry: make this body reachable by gust/AI/referee ---
+  // --- Registry ---
   useEffect(() => {
     const body = bodyRef.current
-    if (body) registerChip(role, body)
-    return () => unregisterChip(role)
-  }, [role])
+    if (body) registerChip(chipId, body)
+    return () => unregisterChip(chipId)
+  }, [chipId])
 
-  // --- New duel: restore start pose ---
+  // --- Placement for non-field states (pile / hand / parked / ante) ---
   useEffect(() => {
     const body = bodyRef.current
     if (!body) return
-    const pos = role === 'player' ? handPos : groundStart
+    let pos: [number, number, number] | null = null
+    if (status === 'captured' || status === 'lost') {
+      pos = [index * 2, PARKED_Y, side === 'player' ? 5 : -5]
+    } else if (status === 'stack') {
+      pos = inHand ? handPosFor(side) : pileSlot(side, Math.max(0, stackRank))
+    } else if (status === 'field' && !isActive && index === 0) {
+      // Ante chip: placed in the ring at duel start (resetId in deps).
+      pos = antePos(side)
+    }
+    if (!pos) return
     body.setTranslation({ x: pos[0], y: pos[1], z: pos[2] }, true)
     body.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true)
     body.setLinvel({ x: 0, y: 0, z: 0 }, true)
     body.setAngvel({ x: 0, y: 0, z: 0 }, true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resetId, role])
+  }, [status, inHand, stackRank, resetId])
 
-  // --- Pick up: teleport to hand at the start of my turn ---
+  // --- Launch ---
   useEffect(() => {
-    if (!inHand) return
-    const body = bodyRef.current
-    if (!body) return
-    body.setTranslation({ x: handPos[0], y: handPos[1], z: handPos[2] }, true)
-    body.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true)
-    body.setLinvel({ x: 0, y: 0, z: 0 }, true)
-    body.setAngvel({ x: 0, y: 0, z: 0 }, true)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inHand])
-
-  // --- Launch: my throw just started ---
-  useEffect(() => {
-    if (throwId === 0) return
+    if (throwId === 0 || !isActive) return
     const body = bodyRef.current
     const params = useDuelStore.getState().lastThrow
-    if (!body || !params || params.attacker !== role) return
+    if (!body || !params || params.chipId !== chipId) return
 
     const { dirX, dirZ, speed, straightness } = params
+    const hand = handPosFor(side)
 
-    body.setTranslation({ x: handPos[0], y: handPos[1], z: handPos[2] }, true)
+    body.setTranslation({ x: hand[0], y: hand[1], z: hand[2] }, true)
     const tilt = (1 - straightness) * DUEL.maxLandingTiltRad
     const rollAxis = new THREE.Vector3(dirX, 0, dirZ).normalize()
     const q = new THREE.Quaternion().setFromAxisAngle(rollAxis, tilt)
@@ -103,9 +129,9 @@ export function DuelChip({ role }: DuelChipProps) {
       true
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [throwId, role])
+  }, [throwId, isActive])
 
-  // --- The gust (see duelConstants for the model) ---
+  // --- Gust (thrower only) ---
   const gustFiredRef = useRef(false)
   const prevVelRef = useRef(new THREE.Vector3())
   useEffect(() => {
@@ -117,6 +143,7 @@ export function DuelChip({ role }: DuelChipProps) {
     if (!body || gustFiredRef.current) return
     gustFiredRef.current = true
 
+    const store = useDuelStore.getState()
     const impactSpeed = prevVelRef.current.length()
     const rot = body.rotation()
     const q = new THREE.Quaternion(rot.x, rot.y, rot.z, rot.w)
@@ -129,24 +156,25 @@ export function DuelChip({ role }: DuelChipProps) {
 
     if (import.meta.env.DEV)
       console.debug('[gust] fired:', { impactSpeed, flatness, strength })
-    useDuelStore
-      .getState()
-      .recordSlam(pos.x, pos.z, Math.min(1, strength / DUEL.gustRefSpeed))
+    store.recordSlam(pos.x, pos.z, Math.min(1, strength / DUEL.gustRefSpeed))
 
-    // The slap eats the thrower's momentum: a flat slam stops nearly dead
-    // where it lands (aim = destination), a tilted one skids onward.
+    // The slap eats the thrower's momentum: flat slam ≈ dead stop.
     const keep = DUEL.slamVelocityKeep + (1 - flatness) * 0.4
     const v = body.linvel()
     body.setLinvel({ x: v.x * keep, y: 0, z: v.z * keep }, true)
     if (strength <= 0) return
 
-    for (const [, other] of otherChips(role)) {
+    // Blast every OTHER live field chip in range.
+    for (const c of store.chips) {
+      if (c.id === chipId || c.status !== 'field') continue
+      const other = getChip(c.id)
+      if (!other) continue
       const opos = other.translation()
       const dx = opos.x - pos.x
       const dz = opos.z - pos.z
       const dist = Math.hypot(dx, dz)
       if (dist < 0.01 || dist > DUEL.gustRadius) continue
-      if (opos.y > DUEL.chipRadius) continue // only grounded chips catch it
+      if (opos.y > DUEL.chipRadius) continue
 
       const falloff = 1 - dist / DUEL.gustRadius
       const p = Math.min(1, (strength / DUEL.gustRefSpeed) * falloff)
@@ -154,30 +182,32 @@ export function DuelChip({ role }: DuelChipProps) {
       const rx = dx / dist
       const rz = dz / dist
 
-      if (import.meta.env.DEV) console.debug('[gust] target:', { dist, p })
+      if (import.meta.env.DEV) console.debug('[gust] target:', { id: c.id, dist, p })
 
-      // Unstick from the ground so the tip rotation isn't ground away.
+      // Upward impulse at the NEAR edge (the rim facing the blast). The
+      // solver resolves this into a pivot about the grounded far edge —
+      // the physically correct flip motion. (Setting angvel about the
+      // center instead drives the far edge INTO the ground and the
+      // contact solver eats the rotation.)
       other.setTranslation(
         { x: opos.x, y: opos.y + DUEL.gustPreLift, z: opos.z },
         true
       )
-      const mass = other.mass()
-      other.applyImpulse(
-        {
-          x: rx * DUEL.gustSlide * p * mass,
-          y: DUEL.gustLift * p * mass,
-          z: rz * DUEL.gustSlide * p * mass,
-        },
+      const J = DUEL.gustEdgeImpulseBase + DUEL.gustEdgeImpulseScale * p
+      const nearEdge = {
+        x: opos.x - rx * DUEL.chipRadius,
+        y: opos.y,
+        z: opos.z - rz * DUEL.chipRadius,
+      }
+      other.applyImpulseAtPoint(
+        { x: rx * J * DUEL.gustSlide, y: J, z: rz * J * DUEL.gustSlide },
+        nearEdge,
         true
       )
-      // Tip about the horizontal axis perpendicular to the blast (ŷ × r̂):
-      // lifts the near edge, tips the chip away from the impact.
-      const w = DUEL.gustTipOmega * p
-      other.setAngvel({ x: rz * w, y: 0, z: -rx * w }, true)
     }
   }
 
-  // --- Per-frame: flip readout, slam/settle (attacker), wobble (defender) ---
+  // --- Per-frame: slam/settle (thrower), wobble slow-mo (field chips) ---
   const restTimeRef = useRef(0)
   const flightTimeRef = useRef(0)
   const slowmoTimeRef = useRef(0)
@@ -189,16 +219,7 @@ export function DuelChip({ role }: DuelChipProps) {
     if (!body) return
     const store = useDuelStore.getState()
 
-    const rot = body.rotation()
-    quatRef.current.set(rot.x, rot.y, rot.z, rot.w)
-    upRef.current.copy(UP).applyQuaternion(quatRef.current)
-    const upY = upRef.current.y
-    const flipped = upY < 0
-    store.setFlipped(role, flipped)
-
-    const isThrower = store.lastThrow?.attacker === role
-
-    if (phase === 'flight' && isThrower) {
+    if (phase === 'flight' && isActive) {
       // Slam detection: the frame the chip abruptly stops falling.
       if (!gustFiredRef.current) {
         const v = body.linvel()
@@ -212,19 +233,18 @@ export function DuelChip({ role }: DuelChipProps) {
         }
       }
 
-      // Settle: everything at rest (or timeout) → referee the outcome.
+      // Settle: this chip AND every field chip at rest → referee.
       flightTimeRef.current += delta
-      const v = body.linvel()
-      const speed = Math.hypot(v.x, v.y, v.z)
-      // Wait for the defender to stop moving too, or a teetering chip
-      // could be refereed mid-wobble.
-      let defenderSpeed = 0
-      for (const [, other] of otherChips(role)) {
-        const ov = other.linvel()
-        defenderSpeed = Math.max(defenderSpeed, Math.hypot(ov.x, ov.y, ov.z))
+      let maxSpeed = 0
+      for (const c of store.chips) {
+        if (c.status !== 'field') continue
+        const b = getChip(c.id)
+        if (!b) continue
+        const v = b.linvel()
+        maxSpeed = Math.max(maxSpeed, Math.hypot(v.x, v.y, v.z))
       }
-      const allResting = speed < DUEL.restSpeed && defenderSpeed < DUEL.restSpeed
-      restTimeRef.current = allResting ? restTimeRef.current + delta : 0
+      restTimeRef.current =
+        maxSpeed < DUEL.restSpeed ? restTimeRef.current + delta : 0
       if (
         restTimeRef.current >= DUEL.restDuration ||
         flightTimeRef.current >= DUEL.flightTimeout
@@ -237,56 +257,63 @@ export function DuelChip({ role }: DuelChipProps) {
       return
     }
 
-    if (phase === 'flight' && !isThrower) {
-      // Defender: wobble slow-mo near the tipping point — THE clip moment.
+    if (phase === 'flight' && status === 'field' && !isActive) {
+      // Wobble slow-mo when teetering near the tipping point.
+      const rot = body.rotation()
+      quatRef.current.set(rot.x, rot.y, rot.z, rot.w)
+      upRef.current.copy(UP).applyQuaternion(quatRef.current)
+      const upY = upRef.current.y
       const tilted = upY > 0 && upY < DUEL.wobbleEnter
       const budgetLeft = slowmoTimeRef.current < DUEL.slowmoMaxSec
       if (tilted && budgetLeft && store.slam !== null) {
-        store.setTimeScale(DUEL.slowmoScale)
+        store.setTimeScale(DUEL.slowmoScale, chipId)
         slowmoTimeRef.current += delta / DUEL.slowmoScale
       } else if (
-        store.timeScale !== 1 &&
-        (upY >= DUEL.wobbleExit || flipped || !budgetLeft)
+        store.wobbleChipId === chipId &&
+        (upY >= DUEL.wobbleExit || upY < 0 || !budgetLeft)
       ) {
         store.setTimeScale(1)
       }
       return
     }
 
-    // Out of flight: reset per-throw accumulators
     restTimeRef.current = 0
     flightTimeRef.current = 0
-    slowmoTimeRef.current = 0
+    if (phase !== 'flight') slowmoTimeRef.current = 0
   })
 
-  const isPlayer = role === 'player'
+  const isPlayer = side === 'player'
   const topColor = isPlayer ? '#e8b23a' : '#4a90d9'
   const bottomColor = isPlayer ? '#8a5a10' : '#142a42'
-  const sideColor = isPlayer ? '#c98f1f' : '#2f6cab'
+  const hidden = status === 'captured' || status === 'lost'
+
+  const geometry = useMemo(() => chipGeo(), [])
+  const hullPoints = useMemo(() => chipHull(), [])
 
   return (
     <RigidBody
       ref={bodyRef}
-      type={inHand ? 'kinematicPosition' : 'dynamic'}
+      type={status === 'field' ? 'dynamic' : 'kinematicPosition'}
       colliders={false}
-      position={isPlayer ? handPos : groundStart}
+      position={index === 0 ? antePos(side) : pileSlot(side, index - 1)}
       mass={DUEL.chipMass}
       restitution={DUEL.chipRestitution}
       friction={DUEL.chipFriction}
       linearDamping={0.5}
-      angularDamping={0.2}
+      angularDamping={0.35}
       ccd
     >
-      <CylinderCollider args={[DUEL.chipThickness / 2, DUEL.chipRadius]} />
-      <mesh castShadow receiveShadow>
-        <cylinderGeometry
-          args={[DUEL.chipRadius, DUEL.chipRadius, DUEL.chipThickness, DUEL.chipSegments]}
-        />
-        {/* [side, top, bottom] — top and bottom contrast hard so a flip reads instantly */}
-        <meshStandardMaterial attach="material-0" color={sideColor} flatShading roughness={0.7} />
-        <meshStandardMaterial attach="material-1" color={topColor} flatShading roughness={0.6} />
-        <meshStandardMaterial attach="material-2" color={bottomColor} flatShading roughness={0.6} />
-      </mesh>
+      <ConvexHullCollider args={[hullPoints]} />
+      <group visible={!hidden}>
+        <mesh geometry={geometry} castShadow receiveShadow>
+          <meshStandardMaterial color={topColor} flatShading roughness={0.6} />
+        </mesh>
+        {/* Thin bottom disc in the owner's dark color so face-down reads instantly */}
+        <mesh position-y={-DUEL.chipThickness / 2 + 0.002} rotation-x={Math.PI / 2}>
+          <circleGeometry args={[DUEL.chipRadius * 0.985, DUEL.chipSegments]} />
+          <meshStandardMaterial color={bottomColor} flatShading roughness={0.6} side={THREE.BackSide} />
+        </mesh>
+      </group>
     </RigidBody>
   )
 }
