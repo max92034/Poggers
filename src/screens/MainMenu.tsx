@@ -15,7 +15,7 @@ export function MainMenu() {
     <div
       className="dossier"
       style={{
-        backgroundImage: `linear-gradient(rgba(16,14,20,0.82), rgba(16,14,20,0.94)), url(${import.meta.env.BASE_URL}art/backdrop-official.jpg)`,
+        backgroundImage: `linear-gradient(rgba(16,14,20,0.55), rgba(16,14,20,0.9)), url(${import.meta.env.BASE_URL}art/menu-keyart.jpg)`,
       }}
     >
       <div className="dossier__panel">

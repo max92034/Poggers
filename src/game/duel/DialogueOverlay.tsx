@@ -32,14 +32,19 @@ export function DialogueOverlay() {
   const line = dialogue[dialogueIndex]
   if (!line) return null
   const isYou = line.speaker === 'You'
+  // Prefer the transparent standing portrait; fall back to the 16:9 popup.
   const portrait =
+    line.charId && line.mood
+      ? `${import.meta.env.BASE_URL}art/${line.charId}-portrait-${line.mood}.png`
+      : null
+  const fallback =
     line.charId && line.mood
       ? popupImageUrl(line.charId, line.mood as PopupAction)
       : null
 
   return (
     <div className="dialogue" onPointerDown={advanceDialogue}>
-      {portrait && <Portrait key={portrait} url={portrait} />}
+      {portrait && <Portrait key={portrait} url={portrait} fallback={fallback} />}
       <div className="dialogue__box">
         <span className={isYou ? 'dialogue__speaker dialogue__speaker--you' : 'dialogue__speaker'}>
           {line.speaker}
@@ -53,16 +58,20 @@ export function DialogueOverlay() {
   )
 }
 
-/** Rival art above the box; hides itself if the file is missing. */
-function Portrait({ url }: { url: string }) {
+/** Rival art above the box; falls back to popup art, then hides. */
+function Portrait({ url, fallback }: { url: string; fallback: string | null }) {
+  const [src, setSrc] = useState(url)
   const [ok, setOk] = useState(true)
   if (!ok) return null
   return (
     <img
       className="dialogue__portrait"
-      src={url}
+      src={src}
       alt=""
-      onError={() => setOk(false)}
+      onError={() => {
+        if (fallback && src !== fallback) setSrc(fallback)
+        else setOk(false)
+      }}
     />
   )
 }
