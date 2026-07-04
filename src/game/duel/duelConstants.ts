@@ -35,6 +35,30 @@ export const DUEL = {
   flickWindowMs: 90,       // release velocity read from the last N ms of pointer travel
   minFlickDistPx: 30,      // shorter drags are ignored (not a throw)
 
+  // --- Gust (the air-pressure flip — the game's core novel system) ---
+  // A flat, fast slam shoves a ground-level air ring outward; chips inside
+  // the ring get lifted at their near edge and tip away from the impact.
+  gustRadius: 1.8,          // m, how far the air blast reaches
+  gustMinFlatness: 0.25,    // below this |up·y| at impact the gust fizzles
+  gustRefSpeed: 10,         // impact speed (m/s) that yields p=1 at distance 0 —
+                            // a clean 10 m/s slam right next to the target flips it
+  // The gust gives targets a hop + tip (not a raw edge impulse, which spins
+  // chips like flipped coins). p = normalized gust power 0..1 at the target:
+  gustLift: 1.5,            // m/s upward hop at p=1
+  gustSlide: 0.5,           // m/s outward push at p=1
+  gustTipOmega: 30,         // rad/s tipping rotation at p=1 (tuned empirically:
+                            // ground friction at launch + angular damping eat a
+                            // large share; effective max rotation ≈ 200–260°)
+  gustPreLift: 0.02,        // m — unstick the target from the ground before the
+                            // kick so the rising rim doesn't grind away the spin
+
+  // --- Juice ---
+  hitstopMs: 70,            // physics freeze on slam impact
+  slowmoScale: 0.25,        // time scale while the defender teeters
+  slowmoMaxSec: 1.4,        // per-throw cap so slow-mo can't stall the game
+  wobbleEnter: 0.6,         // defender up·y below this (≈53° tilt) → slow-mo
+  wobbleExit: 0.85,         // up·y above this (or fully flipped) → normal speed
+
   // --- Settle detection (same approach as RESOLUTION in constants.ts) ---
   restSpeed: 0.25,         // m/s
   restDuration: 0.6,       // s below restSpeed before we call it settled
