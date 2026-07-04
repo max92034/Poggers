@@ -1,0 +1,13 @@
+.flick-input {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  cursor: grab;
+  touch-action: none; /* critical: stops browser gestures eating the flick on mobile */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.flick-input:active {
+  cursor: grabbing;
+}

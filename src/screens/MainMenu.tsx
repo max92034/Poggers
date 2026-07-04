@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useGameStore } from '../game/store/gameStore'
-import { Info, Play } from 'lucide-react'
+import { Info, Play, Zap } from 'lucide-react'
 import './MainMenu.css'
 
 export function MainMenu() {
   const goToSelect = useGameStore((s) => s.goToSelect)
+  const goToDuel = useGameStore((s) => s.goToDuel)
   const [showHowTo, setShowHowTo] = useState(false)
 
   return (
@@ -19,6 +20,9 @@ export function MainMenu() {
 
         <button className="btn main-menu__btn" onClick={goToSelect}>
           <Play size={18} /> Enter Arena
+        </button>
+        <button className="btn main-menu__btn" onClick={goToDuel}>
+          <Zap size={18} /> Duel Prototype
         </button>
         <button
           className="btn-secondary main-menu__btn main-menu__btn--secondary"

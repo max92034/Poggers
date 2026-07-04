@@ -9,6 +9,7 @@ import { TurnIndicator } from './game/ui/TurnIndicator'
 import { Scoreboard } from './game/ui/Scoreboard'
 import { PopupLayer } from './game/ui/PopupLayer'
 import { DevMenu } from './game/ui/DevMenu'
+import { DuelScreen } from './game/duel/DuelScreen'
 
 function GameScreen() {
   const playerCharId = useGameStore((s) => s.playerCharId)
@@ -42,6 +43,7 @@ export default function App() {
       {screen === 'select' && <CharacterSelect />}
       {screen === 'game' && <GameScreen />}
       {screen === 'result' && <ResultScreen />}
+      {screen === 'duel' && <DuelScreen />}
       {screen === 'game' && (
         <div className="dev-menu-wrapper">
           <DevMenu />

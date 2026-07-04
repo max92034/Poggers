@@ -4,7 +4,7 @@ import { MATCH } from '../physics/constants'
 import type { SlammerItem } from '../items/types'
 import { getItem } from '../items/catalog'
 
-export type Screen = 'menu' | 'select' | 'game' | 'result'
+export type Screen = 'menu' | 'select' | 'game' | 'result' | 'duel'
 export type Side = 'player' | 'ai'
 
 export type Phase =
@@ -63,6 +63,7 @@ interface GameState {
   // ----- Actions -----
   setCameraDistance: (distance: number) => void
   goToSelect: () => void
+  goToDuel: () => void
   startMatch: (playerCharId: string, aiCharId: string) => void
   beginPlayerTurn: () => void
   setAim: (angle: number) => void
@@ -105,6 +106,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   cameraDistance: 9,
 
   goToSelect: () => set({ screen: 'select' }),
+  goToDuel: () => set({ screen: 'duel' }),
   setCameraDistance: (distance) => set({ cameraDistance: distance }),
 
   startMatch: (playerCharId, aiCharId) =>
