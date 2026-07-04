@@ -1,0 +1,50 @@
+.dialogue {
+  position: absolute;
+  inset: 0;
+  z-index: 50; /* above FlickInput (20) and HUD (30) */
+  cursor: pointer;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 6vh;
+  background: linear-gradient(to top, rgba(10, 12, 18, 0.55), transparent 40%);
+}
+
+.dialogue__box {
+  width: min(680px, 92vw);
+  background: rgba(16, 20, 30, 0.94);
+  border: 1px solid rgba(232, 223, 201, 0.25);
+  border-radius: 10px;
+  padding: 14px 20px 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+.dialogue__speaker {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #e8963c; /* sodium — rivals */
+  margin-bottom: 6px;
+}
+
+.dialogue__speaker--you {
+  color: #5fd4e0; /* vending-cyan — the 2008 man */
+}
+
+.dialogue__text {
+  font-size: 16px;
+  line-height: 1.5;
+  color: #f0efe8;
+  margin: 0 0 8px;
+  min-height: 48px;
+}
+
+.dialogue__hint {
+  display: block;
+  text-align: right;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #8890a5;
+}

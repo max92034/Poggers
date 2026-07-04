@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { DUEL, VENUES, type VenueId } from './duelConstants'
-import { STORY_RIVALS, type Rival } from './story'
+import { STORY_RIVALS, type Rival, type DialogueLine } from './story'
 import { getChip } from './chipRegistry'
 import { speedForRange } from './ballistics'
 
@@ -161,6 +161,11 @@ interface DuelState {
   rivalIndex: number
   storyCleared: boolean
 
+  // Dialogue overlay (blocks input while lines remain)
+  dialogue: DialogueLine[] | null
+  dialogueIndex: number
+  introShownFor: number // rival index whose intro already played
+
   // Juice
   slam: SlamEvent | null
   hitstop: boolean
@@ -186,6 +191,8 @@ interface DuelState {
   startStory: () => void
   startFreePlay: () => void
   advanceRival: () => void
+  advanceDialogue: () => void
+  skipDialogue: () => void
   recordSlam: (x: number, z: number, strength: number) => void
   setTimeScale: (scale: number, wobbleChipId?: string | null) => void
 }
@@ -242,6 +249,9 @@ export const useDuelStore = create<DuelState>((set, get) => ({
   storyMode: false,
   rivalIndex: 0,
   storyCleared: false,
+  dialogue: null,
+  dialogueIndex: 0,
+  introShownFor: -1,
   activeChipId: null,
   throwId: 0,
   resetId: 0,
@@ -447,6 +457,8 @@ export const useDuelStore = create<DuelState>((set, get) => ({
     set((s) => {
       const rival = s.storyMode ? STORY_RIVALS[s.rivalIndex] ?? null : null
       const v = venue ?? (rival ? rival.venue : s.venue)
+      // Play the rival's intro exchange once (not again on rematch).
+      const showIntro = rival !== null && s.introShownFor !== s.rivalIndex
       // Cleaned out? A fresh pack from the corner store.
       const restock = s.collection.length === 0
       const collection = restock ? starterCollection() : s.collection
@@ -460,6 +472,9 @@ export const useDuelStore = create<DuelState>((set, get) => ({
         supplies: restock ? { lighter: 2, paint: 2 } : s.supplies,
         chips,
         venue: v,
+        dialogue: showIntro ? rival!.introDialogue : null,
+        dialogueIndex: 0,
+        introShownFor: showIntro ? s.rivalIndex : s.introShownFor,
         currentTurn: playerHasStack ? ('player' as DuelSide) : ('ai' as DuelSide),
         phase: playerHasStack ? ('ready' as DuelPhase) : ('ai_think' as DuelPhase),
         activeChipId: null,
@@ -524,9 +539,21 @@ export const useDuelStore = create<DuelState>((set, get) => ({
   },
 
   startStory: () => {
-    set({ storyMode: true, rivalIndex: 0, storyCleared: false })
+    set({ storyMode: true, rivalIndex: 0, storyCleared: false, introShownFor: -1 })
     get().nextDuel()
   },
+
+  advanceDialogue: () => {
+    const s = get()
+    if (!s.dialogue) return
+    if (s.dialogueIndex + 1 >= s.dialogue.length) {
+      set({ dialogue: null, dialogueIndex: 0 })
+    } else {
+      set({ dialogueIndex: s.dialogueIndex + 1 })
+    }
+  },
+
+  skipDialogue: () => set({ dialogue: null, dialogueIndex: 0 }),
 
   startFreePlay: () => {
     set({ storyMode: false, storyCleared: false })

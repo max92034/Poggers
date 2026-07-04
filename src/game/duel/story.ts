@@ -5,6 +5,11 @@ import { CHIP_TYPES, type ChipParams } from './chipTypes'
 // deadpan dialogue (the world is COMPLETELY serious about POG — see
 // ART_DIRECTION.md: never parody).
 
+export interface DialogueLine {
+  speaker: string // 'You' for the protagonist; rival name otherwise
+  text: string
+}
+
 export interface Rival {
   id: string
   name: string
@@ -16,7 +21,7 @@ export interface Rival {
     speedNoise: number     // fractional power noise
     minStraightness: number
   }
-  intro: string
+  introDialogue: DialogueLine[]
   winLine: string  // rival's line when THEY win
   loseLine: string // rival's line when they lose
 }
@@ -34,8 +39,21 @@ export const STORY_RIVALS: Rival[] = [
     venue: 'official',
     roster: [t('standard'), t('standard'), t('standard'), t('standard')],
     skill: { aimNoise: 0.45, speedNoise: 0.16, minStraightness: 0.7 },
-    intro:
-      'Registration confirmed. I should warn you: I have completed all four civic throwing seminars.',
+    introDialogue: [
+      {
+        speaker: 'Aoi',
+        text: "Registration confirmed. Duelist designation… 'pre-war specimen'? Is that a clerical joke?",
+      },
+      {
+        speaker: 'You',
+        text: 'I was frozen in 2008. Where I come from, we played this at recess.',
+      },
+      {
+        speaker: 'Aoi',
+        text: '"Recess." I trained eleven years for this. I should warn you: I have completed all four civic throwing seminars.',
+      },
+      { speaker: 'You', text: 'Four whole seminars.' },
+    ],
     winLine: 'A clean result. Your chips will be catalogued respectfully.',
     loseLine:
       'Recorded and witnessed. May I ask… where did you learn to land it flat like that?',
@@ -52,8 +70,24 @@ export const STORY_RIVALS: Rival[] = [
       t('whiteout'),
     ],
     skill: { aimNoise: 0.34, speedNoise: 0.2, minStraightness: 0.75 },
-    intro:
-      "My caps are regulation-heavy. The fans love a heavy cap. Try not to cry on camera — it trends.",
+    introDialogue: [
+      {
+        speaker: 'Lumina',
+        text: 'My caps are regulation-heavy. Certified at the weigh-in. The fans love a heavy cap.',
+      },
+      {
+        speaker: 'You',
+        text: "Back home we called that 'painting it'. My school banned it in third grade.",
+      },
+      {
+        speaker: 'Lumina',
+        text: 'Banned? What kind of barbaric century BANNED cap tuning?',
+      },
+      {
+        speaker: 'Lumina',
+        text: "Whatever. Try not to cry on camera — it trends, and not in your favor.",
+      },
+    ],
     winLine: 'Cut! Perfect. Somebody clip that for the evening broadcast.',
     loseLine:
       "Wait. Wait. The rim — you flipped it BY the rim?! Nobody teaches that. WHO taught you that?",
@@ -70,8 +104,18 @@ export const STORY_RIVALS: Rival[] = [
       t('standard', { weight: 1.25, thickness: 1.25, label: 'Standard ⬜' }),
     ],
     skill: { aimNoise: 0.22, speedNoise: 0.08, minStraightness: 0.85 },
-    intro:
-      'No cameras down here. No weigh-in either. Whatever you brought back from 2008 — table it.',
+    introDialogue: [
+      { speaker: 'Kuroe', text: 'No cameras down here. No weigh-in either.' },
+      {
+        speaker: 'Kuroe',
+        text: 'The Council says the old arts died in the freezers. Yet the district net keeps clipping a man who flips caps by the rim.',
+      },
+      { speaker: 'You', text: "They're recess tricks. Honestly." },
+      {
+        speaker: 'Kuroe',
+        text: '"Recess." Table your chips, ancient one. The tunnel keeps what it wins.',
+      },
+    ],
     winLine: 'The tunnel keeps what it wins. Come back when your hands stop shaking.',
     loseLine:
       'Hm. The old arts. So the freezer really did keep one of you… Fine. Take them. You earned it.',

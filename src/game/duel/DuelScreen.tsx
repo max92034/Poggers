@@ -8,6 +8,7 @@ import { STORY_RIVALS } from './story'
 import { playSlam } from './slamSound'
 import { DuelScene } from './DuelScene'
 import { FlickInput } from './FlickInput'
+import { DialogueOverlay } from './DialogueOverlay'
 import './DuelScreen.css'
 
 export function DuelScreen() {
@@ -34,6 +35,7 @@ export function DuelScreen() {
   const storyCleared = useDuelStore((s) => s.storyCleared)
   const advanceRival = useDuelStore((s) => s.advanceRival)
   const rival = storyMode ? STORY_RIVALS[rivalIndex] : null
+  const dialogue = useDuelStore((s) => s.dialogue)
   const modChip = useDuelStore((s) => s.modChip)
   const moveChipUp = useDuelStore((s) => s.moveChipUp)
   const aiThrow = useDuelStore((s) => s.aiThrow)
@@ -62,7 +64,8 @@ export function DuelScreen() {
     const onKey = (e: KeyboardEvent) => {
       const st = useDuelStore.getState()
       if ((e.key === 'r' || e.key === 'R') && st.phase === 'gameover') nextDuel()
-      if (e.key === 'Escape') backToMenu()
+      // Esc skips dialogue first (handled by the overlay); only exits when none
+      if (e.key === 'Escape' && !st.dialogue) backToMenu()
       if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft')
         st.setPlayerStance(st.playerStance - DUEL.stanceKeyStep)
       if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight')
@@ -72,8 +75,8 @@ export function DuelScreen() {
     return () => window.removeEventListener('keydown', onKey)
   }, [nextDuel, backToMenu])
 
-  // Leave the duel clean when exiting to menu
-  useEffect(() => () => nextDuel(), [nextDuel])
+  // (Session state is reset by the menu's Story/Free Duel buttons — no
+  // unmount cleanup here; StrictMode double-mount would eat the intro.)
 
   const turnLabel =
     phase === 'gameover'
@@ -115,7 +118,8 @@ export function DuelScreen() {
   return (
     <div className="duel-screen">
       <DuelScene />
-      {currentTurn === 'player' && phase === 'ready' && <FlickInput />}
+      {currentTurn === 'player' && phase === 'ready' && !dialogue && <FlickInput />}
+      <DialogueOverlay />
 
       <div className="duel-hud duel-hud--top">
         <button className="duel-back" onClick={backToMenu}>
@@ -126,9 +130,9 @@ export function DuelScreen() {
             {rival ? `VS ${rival.name.toUpperCase()} — ${venueDef.name}` : venueDef.name}
           </h1>
           <p>{turnLabel}</p>
-          {rival && !lastThrow && phase === 'ready' && (
+          {rival && !lastThrow && phase === 'ready' && !dialogue && (
             <p className="duel-title__intro">
-              {rival.name}, {rival.title}: “{rival.intro}”
+              vs {rival.name} — {rival.title}
             </p>
           )}
         </div>
