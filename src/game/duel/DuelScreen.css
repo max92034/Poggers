@@ -97,12 +97,59 @@
 .duel-stat--tilted .duel-stat__value { color: #e86a5c; }
 .duel-stat--result .duel-stat__value { color: #7ec8ff; }
 
-.duel-reset {
+.duel-tally {
+  pointer-events: none;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  background: rgba(20, 24, 34, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  padding: 8px 14px;
+}
+
+.duel-tally__you { color: #e8b23a; }
+.duel-tally__sep { color: #8890a5; }
+.duel-tally__rival { color: #4a90d9; }
+
+.duel-tally__throws {
+  margin-left: 10px;
+  font-size: 11px;
+  font-weight: 400;
+  color: #8890a5;
+}
+
+.duel-gameover {
   position: absolute;
-  z-index: 30;
-  bottom: 90px;
-  left: 50%;
-  transform: translateX(-50%);
+  z-index: 40;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(10, 12, 18, 0.55);
+}
+
+.duel-gameover__title {
+  font-size: 52px;
+  letter-spacing: 8px;
+  color: #f0f0f5;
+  margin: 0;
+}
+
+.duel-gameover__title--win { color: #5ce88a; }
+.duel-gameover__title--lose { color: #e86a5c; }
+
+.duel-gameover__reason {
+  font-size: 16px;
+  color: #c8cede;
+  margin: 0 0 12px;
+}
+
+.duel-gameover__btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;

@@ -5,7 +5,7 @@ export const DUEL = {
   // --- Arena ---
   groundSize: 14,          // square concrete slab side length (m)
   groundFriction: 0.7,
-  groundRestitution: 0.25,
+  groundRestitution: 0.12,
   circleRadius: 3.2,       // chalk circle = ring-out boundary (visual only in CP1)
 
   // --- Chips ---
@@ -13,7 +13,8 @@ export const DUEL = {
   chipThickness: 0.05,
   chipMass: 0.03,
   chipFriction: 0.6,
-  chipRestitution: 0.3,
+  chipRestitution: 0.12, // real chips slap dead — energy goes into the clack,
+                         // not a rebound; also keeps max-power slams in-ring
   chipSegments: 12,        // low-poly cylinder segments
 
   // Defender chip lies flat near the circle center
@@ -30,6 +31,12 @@ export const DUEL = {
                            // the speed range, bracketing the defender at 3.2m
   spinPerSpeed: 1.6,       // rad/s of Y-spin per m/s of launch speed
   maxLandingTiltRad: 0.5,  // worst-case tilt from a crooked flick (~29°)
+
+  // --- Duel structure ---
+  maxThrows: 10,           // total throws before the duel is called a draw
+  aiThinkMs: 1300,         // rival "thinking" delay before its throw
+  aiAimNoise: 0.3,         // m std-dev on the rival's intended landing point
+  aiMinStraightness: 0.8,  // rival flick quality range (0.8..1.0)
 
   // --- Flick gesture sampling ---
   flickWindowMs: 90,       // release velocity read from the last N ms of pointer travel
@@ -51,6 +58,9 @@ export const DUEL = {
                             // large share; effective max rotation ≈ 200–260°)
   gustPreLift: 0.02,        // m — unstick the target from the ground before the
                             // kick so the rising rim doesn't grind away the spin
+  slamVelocityKeep: 0.18,   // fraction of the thrower's velocity surviving a
+                            // flat slam (the slap absorbs the rest); a tilted
+                            // landing keeps more and skids — up to this + 0.4
 
   // --- Juice ---
   hitstopMs: 70,            // physics freeze on slam impact

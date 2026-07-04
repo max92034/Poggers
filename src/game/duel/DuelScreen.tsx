@@ -2,7 +2,9 @@ import { useEffect } from 'react'
 import { ArrowLeft, RotateCcw } from 'lucide-react'
 import { useGameStore } from '../store/gameStore'
 import { useDuelStore } from './duelStore'
-import { landingGrade } from './duelConstants'
+import { DUEL, landingGrade } from './duelConstants'
+import { computeAiThrow } from './duelAI'
+import { playSlam } from './slamSound'
 import { DuelScene } from './DuelScene'
 import { FlickInput } from './FlickInput'
 import './DuelScreen.css'
@@ -10,28 +12,84 @@ import './DuelScreen.css'
 export function DuelScreen() {
   const backToMenu = useGameStore((s) => s.backToMenu)
   const phase = useDuelStore((s) => s.phase)
+  const currentTurn = useDuelStore((s) => s.currentTurn)
+  const throwCount = useDuelStore((s) => s.throwCount)
   const lastThrow = useDuelStore((s) => s.lastThrow)
-  const defenderFlipped = useDuelStore((s) => s.defenderFlipped)
-  const attackerFlipped = useDuelStore((s) => s.attackerFlipped)
-  const resetDuel = useDuelStore((s) => s.resetDuel)
+  const winner = useDuelStore((s) => s.winner)
+  const winReason = useDuelStore((s) => s.winReason)
+  const playerChipsWon = useDuelStore((s) => s.playerChipsWon)
+  const aiChipsWon = useDuelStore((s) => s.aiChipsWon)
+  const slam = useDuelStore((s) => s.slam)
+  const aiThrow = useDuelStore((s) => s.aiThrow)
+  const nextDuel = useDuelStore((s) => s.nextDuel)
 
-  // R = throw again, Esc = back to menu
+  // Rival takes its turn after a "thinking" delay
+  useEffect(() => {
+    if (phase !== 'ai_think') return
+    const timer = setTimeout(() => aiThrow(computeAiThrow()), DUEL.aiThinkMs)
+    return () => clearTimeout(timer)
+  }, [phase, aiThrow])
+
+  // Slam clack (synth placeholder)
+  useEffect(() => {
+    if (slam) playSlam(slam.strength)
+  }, [slam?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // R = next duel (only once decided), Esc = back to menu
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'r' || e.key === 'R') resetDuel()
+      if ((e.key === 'r' || e.key === 'R') && useDuelStore.getState().phase === 'gameover')
+        nextDuel()
       if (e.key === 'Escape') backToMenu()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [resetDuel, backToMenu])
+  }, [nextDuel, backToMenu])
 
-  // Leave the duel in a clean state when exiting to menu
-  useEffect(() => () => resetDuel(), [resetDuel])
+  // Leave the duel clean when exiting to menu
+  useEffect(() => () => nextDuel(), [nextDuel])
+
+  const turnLabel =
+    phase === 'gameover'
+      ? winner === 'player'
+        ? 'YOU WIN'
+        : winner === 'ai'
+        ? 'YOU LOSE'
+        : 'DRAW'
+      : phase === 'flight'
+      ? '...'
+      : currentTurn === 'player'
+      ? 'YOUR TURN — hold, then flick forward to slam'
+      : 'RIVAL IS LINING UP...'
+
+  const reasonText = (() => {
+    if (!winReason) return ''
+    switch (winReason) {
+      case 'flip':
+        return winner === 'player'
+          ? "You flipped the rival's chip — it's yours now!"
+          : 'Your chip got flipped — the rival pockets it.'
+      case 'self-flip':
+        return winner === 'player'
+          ? 'The rival flipped their own chip. Free chip!'
+          : 'Your own chip landed face-down. It belongs to the rival now.'
+      case 'out-of-bounds':
+        return winner === 'player'
+          ? 'The rival threw their chip out of the circle. You keep it!'
+          : 'Your chip flew out of the circle. Forfeited!'
+      case 'ring-out':
+        return winner === 'player'
+          ? "You shoved the rival's chip out of the ring. Win — but no capture."
+          : 'Your chip was shoved out of the ring. Loss — but you keep it.'
+      case 'draw':
+        return 'Out of throws. Both chips walk away.'
+    }
+  })()
 
   return (
     <div className="duel-screen">
       <DuelScene />
-      <FlickInput />
+      {currentTurn === 'player' && phase === 'ready' && <FlickInput />}
 
       <div className="duel-hud duel-hud--top">
         <button className="duel-back" onClick={backToMenu}>
@@ -39,21 +97,22 @@ export function DuelScreen() {
         </button>
         <div className="duel-title">
           <h1>DUEL PROTOTYPE</h1>
-          <p>
-            {phase === 'ready'
-              ? 'Hold, then flick forward to slam your chip'
-              : phase === 'flight'
-              ? '...'
-              : 'Press R to throw again'}
-          </p>
+          <p>{turnLabel}</p>
         </div>
-        <div className="duel-hud__spacer" />
+        <div className="duel-tally">
+          <span className="duel-tally__you">YOU {playerChipsWon}</span>
+          <span className="duel-tally__sep">–</span>
+          <span className="duel-tally__rival">{aiChipsWon} RIVAL</span>
+          <span className="duel-tally__throws">
+            throw {Math.min(throwCount + (phase === 'gameover' ? 0 : 1), DUEL.maxThrows)}/{DUEL.maxThrows}
+          </span>
+        </div>
       </div>
 
-      {lastThrow && (
+      {lastThrow && phase !== 'gameover' && (
         <div className="duel-hud duel-hud--stats">
           <div className="duel-stat">
-            <span className="duel-stat__label">Speed</span>
+            <span className="duel-stat__label">{lastThrow.attacker === 'player' ? 'You' : 'Rival'}</span>
             <span className="duel-stat__value">{lastThrow.speed.toFixed(1)} m/s</span>
           </div>
           <div className="duel-stat">
@@ -66,25 +125,27 @@ export function DuelScreen() {
             <span className="duel-stat__label">Landing</span>
             <span className="duel-stat__value">{landingGrade(lastThrow.straightness)}</span>
           </div>
-          {phase === 'settled' && (
-            <div className="duel-stat duel-stat--result">
-              <span className="duel-stat__label">Result</span>
-              <span className="duel-stat__value">
-                {defenderFlipped
-                  ? 'FLIPPED! 🎉'
-                  : attackerFlipped
-                  ? 'SELF-FLIP 💀'
-                  : 'no flip'}
-              </span>
-            </div>
-          )}
         </div>
       )}
 
-      {phase === 'settled' && (
-        <button className="btn duel-reset" onClick={resetDuel}>
-          <RotateCcw size={16} /> Throw Again (R)
-        </button>
+      {phase === 'gameover' && (
+        <div className="duel-gameover">
+          <h2
+            className={
+              winner === 'player'
+                ? 'duel-gameover__title duel-gameover__title--win'
+                : winner === 'ai'
+                ? 'duel-gameover__title duel-gameover__title--lose'
+                : 'duel-gameover__title'
+            }
+          >
+            {turnLabel}
+          </h2>
+          <p className="duel-gameover__reason">{reasonText}</p>
+          <button className="btn duel-gameover__btn" onClick={nextDuel}>
+            <RotateCcw size={16} /> Next Duel (R)
+          </button>
+        </div>
       )}
     </div>
   )

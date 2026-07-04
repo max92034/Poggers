@@ -4,23 +4,19 @@ import { Physics, RigidBody, CuboidCollider } from '@react-three/rapier'
 import * as THREE from 'three'
 import { DUEL } from './duelConstants'
 import { useDuelStore } from './duelStore'
+import { getChip } from './chipRegistry'
 import { DuelChip } from './DuelChip'
 import { GustRing } from './GustRing'
 
 const CAM_HOME = new THREE.Vector3(0, 3.6, 5.8)
 const CAM_HOME_TARGET = new THREE.Vector3(0, 0.1, -0.6)
-// Wobble slow-mo: push in low over the defender chip
-const CAM_WOBBLE = new THREE.Vector3(0, 1.7, 1.9)
-const CAM_WOBBLE_TARGET = new THREE.Vector3(
-  DUEL.defenderPos[0],
-  0.1,
-  DUEL.defenderPos[2]
-)
 
 /** Over-the-shoulder camera; pushes in low when the defender chip teeters. */
 function CameraRig() {
   const camera = useThree((s) => s.camera)
   const targetRef = useRef(CAM_HOME_TARGET.clone())
+  const wobbleTargetRef = useRef(new THREE.Vector3())
+  const wobblePosRef = useRef(new THREE.Vector3())
 
   useEffect(() => {
     camera.position.copy(CAM_HOME)
@@ -28,9 +24,22 @@ function CameraRig() {
   }, [camera])
 
   useFrame(() => {
-    const slowmo = useDuelStore.getState().timeScale < 1
-    const wantPos = slowmo ? CAM_WOBBLE : CAM_HOME
-    const wantTarget = slowmo ? CAM_WOBBLE_TARGET : CAM_HOME_TARGET
+    const store = useDuelStore.getState()
+    const slowmo = store.timeScale < 1
+    let wantPos = CAM_HOME
+    let wantTarget: THREE.Vector3 = CAM_HOME_TARGET
+    if (slowmo && store.lastThrow) {
+      // Look at the teetering defender chip, from low on the player's side.
+      const defender = store.lastThrow.attacker === 'player' ? 'ai' : 'player'
+      const body = getChip(defender)
+      if (body) {
+        const p = body.translation()
+        wobbleTargetRef.current.set(p.x, 0.15, p.z)
+        wobblePosRef.current.set(p.x * 0.4, 1.6, p.z + 2.2)
+        wantTarget = wobbleTargetRef.current
+        wantPos = wobblePosRef.current
+      }
+    }
     // Snap in fast for the drama, ease back out gently
     const k = slowmo ? 0.12 : 0.05
     camera.position.lerp(wantPos, k)
@@ -94,8 +103,8 @@ export function DuelScene() {
         paused={hitstop}
       >
         <Ground />
-        <DuelChip role="defender" />
-        <DuelChip role="attacker" />
+        <DuelChip role="ai" />
+        <DuelChip role="player" />
       </Physics>
 
       <ChalkCircle />

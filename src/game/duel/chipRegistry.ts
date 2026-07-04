@@ -15,3 +15,7 @@ export function unregisterChip(id: string) {
 export function otherChips(excludeId: string): Array<[string, RapierRigidBody]> {
   return [...bodies.entries()].filter(([id]) => id !== excludeId)
 }
+
+export function getChip(id: string): RapierRigidBody | undefined {
+  return bodies.get(id)
+}
