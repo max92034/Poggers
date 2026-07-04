@@ -242,19 +242,5 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   animation: shimmer 2s ease-in-out infinite;
 }
 
-/* CRT scanline overlay (global) */
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9997;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0, 0, 0, 0.06) 2px,
-    rgba(0, 0, 0, 0.06) 4px
-  );
-  opacity: 0.4;
-}
+/* CRT scanline overlay removed — off-brief per docs/ART_DIRECTION.md
+   (Soft Retro-Future Urbanism, not arcade). */

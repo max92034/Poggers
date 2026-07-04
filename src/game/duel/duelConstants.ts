@@ -125,6 +125,8 @@ export const VENUES: Record<
     key: { color: string; intensity: number; pos: [number, number, number] }
     fill: { color: string; intensity: number; pos: [number, number, number] }
     hudAccent: string
+    backdrop: string     // public/art/ filename shown behind the arena
+    backdropTint: string // multiplied onto the backdrop to sit it in the light
     // Rules: does the rival bring modded chips?
     rivalMods: boolean
   }
@@ -139,6 +141,8 @@ export const VENUES: Record<
     key: { color: '#ffffff', intensity: 1.3, pos: [4, 8, 3] },
     fill: { color: '#f2a7b8', intensity: 0.35, pos: [-5, 4, -4] }, // sunset-pink rim
     hudAccent: '#4e8a80',   // oxidized-teal
+    backdrop: 'backdrop-official.jpg', // megablock dusk skyline (concept art)
+    backdropTint: '#d8cfc0',
     rivalMods: false,       // weigh-in enforced: clean chips only
   },
   underground: {
@@ -151,6 +155,8 @@ export const VENUES: Record<
     key: { color: '#e8963c', intensity: 1.6, pos: [2, 6, 1] },     // sodium tube
     fill: { color: '#c04f8a', intensity: 0.5, pos: [-4, 3, -3] }, // dirty-magenta
     hudAccent: '#e8963c',
+    backdrop: 'backdrop-underground.jpg', // REPAIR corridor (concept art)
+    backdropTint: '#9a8878',
     rivalMods: true,        // anything goes down here
   },
 }

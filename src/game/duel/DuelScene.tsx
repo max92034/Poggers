@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react'
-import { Canvas, useThree, useFrame } from '@react-three/fiber'
+import { Suspense, useEffect, useRef } from 'react'
+import { Canvas, useThree, useFrame, useLoader } from '@react-three/fiber'
 import { Physics, RigidBody, CuboidCollider } from '@react-three/rapier'
 import * as THREE from 'three'
 import { DUEL, VENUES } from './duelConstants'
@@ -68,6 +68,30 @@ function Ground({ color }: { color: string }) {
   )
 }
 
+/** Concept-art backdrop: a wide curved wall of the world behind the ring. */
+function Backdrop({ file, tint }: { file: string; tint: string }) {
+  const tex = useLoader(
+    THREE.TextureLoader,
+    `${import.meta.env.BASE_URL}art/${file}`
+  )
+  tex.colorSpace = THREE.SRGBColorSpace
+  const h = 12
+  return (
+    <mesh position={[0, h / 2 - 1.5, 3]}>
+      {/* inner face of a cylinder arc, wall ~14m behind the ring center */}
+      <cylinderGeometry
+        args={[14, 14, h, 48, 1, true, Math.PI * 0.7, Math.PI * 0.6]}
+      />
+      <meshBasicMaterial
+        map={tex}
+        color={tint}
+        side={THREE.BackSide}
+        toneMapped={false}
+      />
+    </mesh>
+  )
+}
+
 /** The ring boundary — venue-painted. */
 function RingCircle({ color, opacity }: { color: string; opacity: number }) {
   return (
@@ -90,7 +114,11 @@ export function DuelScene() {
       style={{ position: 'absolute', inset: 0 }}
     >
       <color attach="background" args={[venue.bg]} />
+      <fog attach="fog" args={[venue.bg, 18, 32]} />
       <CameraRig />
+      <Suspense fallback={null}>
+        <Backdrop file={venue.backdrop} tint={venue.backdropTint} />
+      </Suspense>
 
       <ambientLight color={venue.ambient.color} intensity={venue.ambient.intensity} />
       <directionalLight
